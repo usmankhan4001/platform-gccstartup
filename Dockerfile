@@ -21,6 +21,9 @@ RUN npx esbuild apps/web/src/worker/index.ts --bundle --platform=node --format=e
 # Bundle the migration runner
 RUN npx esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node20 --outfile=migrate.mjs --log-level=warning
 
+# Bundle the first-run seed (idempotent — safe to run on every boot)
+RUN npx esbuild packages/db/scripts/seed.ts --bundle --platform=node --format=esm --target=node20 --outfile=seed.mjs --log-level=warning
+
 # Stage 3: Production
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -40,6 +43,9 @@ COPY --from=builder /app/worker.mjs ./worker.mjs
 
 # Self-contained migration runner (drizzle-kit is not installed in this stage)
 COPY --from=builder /app/migrate.mjs ./migrate.mjs
+
+# Self-contained first-run seed
+COPY --from=builder /app/seed.mjs ./seed.mjs
 
 # Entrypoint runs Drizzle migrations before handing off to the command
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh

@@ -19,7 +19,8 @@
     "worker:build": "esbuild apps/web/src/worker/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=worker.mjs --log-level=warning",
     "worker:dev": "tsx apps/web/src/worker/index.ts",
     "migrate:build": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node20 --outfile=migrate.mjs --log-level=warning",
-    "db:seed": "pnpm --filter @gccstartup/db seed"
+    "db:seed": "pnpm --filter @gccstartup/db seed",
+    "seed:build": "esbuild packages/db/scripts/seed.ts --bundle --platform=node --format=esm --target=node20 --outfile=seed.mjs --log-level=warning"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
