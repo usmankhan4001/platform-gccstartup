@@ -27,7 +27,7 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
       vitest:
-        specifier: ^3.0.0
+        specifier: ^3.2.7
         version: 3.2.7(@types/node@26.5.0)(happy-dom@20.14.0)
 
   apps/web:
