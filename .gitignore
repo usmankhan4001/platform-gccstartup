@@ -5,3 +5,13 @@ dist/
 .env.local
 *.tsbuildinfo
 .turbo/
+
+# local dev overrides
+docker-compose.override.yml
+pgtest.mjs
+
+# build artefacts
+worker.mjs
+migrate.mjs
+dev.log
+dev-err.log

@@ -15,7 +15,11 @@
     "db:migrate": "pnpm --filter @gccstartup/db migrate",
     "db:studio": "pnpm --filter @gccstartup/db studio",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "worker:build": "esbuild apps/web/src/worker/index.ts --bundle --platform=node --format=esm --target=node20 --outfile=worker.mjs --log-level=warning",
+    "worker:dev": "tsx apps/web/src/worker/index.ts",
+    "migrate:build": "esbuild scripts/migrate.ts --bundle --platform=node --format=esm --target=node20 --outfile=migrate.mjs --log-level=warning",
+    "db:seed": "pnpm --filter @gccstartup/db seed"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^8.0.0",
@@ -24,7 +28,9 @@
     "eslint-config-prettier": "^9.0.0",
     "prettier": "^3.4.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "esbuild": "^0.24.0",
+    "tsx": "^4.19.2"
   },
   "engines": {
     "node": ">=20.0.0",

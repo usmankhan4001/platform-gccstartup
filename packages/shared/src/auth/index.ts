@@ -4,8 +4,8 @@ export {
   refreshSession,
   getSessionFromCookie,
   type SessionPayload,
-} from './jwt.js'
+} from './jwt'
 
-export { hashPassword, verifyPassword } from './password.js'
+export { hashPassword, verifyPassword } from './password'
 
-export { hasPermission, canAccess, getRoleLevel, type Role } from './rbac.js'
+export { hasPermission, canAccess, getRoleLevel, type Role } from './rbac'

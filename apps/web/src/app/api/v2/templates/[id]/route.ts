@@ -1,68 +1,76 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { email_campaigns, email_templates } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../_lib'
 
-const stubTemplates = [
-  { id: '1', name: 'Welcome Message', type: 'whatsapp', category: 'marketing', language: 'en', status: 'approved', content: 'Hello {{firstName}}, welcome to {{companyName}}!', variables: ['firstName', 'companyName'], createdAt: new Date().toISOString() },
-  { id: '2', name: 'Order Confirmation', type: 'email', category: 'transactional', language: 'en', status: 'approved', content: '<h1>Order #{{orderId}} confirmed</h1>', variables: ['orderId'], createdAt: new Date().toISOString() },
-]
-
-type RouteContext = { params: Promise<{ id: string }> }
+function serialize(row: typeof email_templates.$inferSelect) {
+  return {
+    id: row.id,
+    name: row.name,
+    type: 'email',
+    category: row.category,
+    description: row.description,
+    subject: row.subject,
+    content: row.html_body,
+    text: row.text_body,
+    blocks: row.blocks ?? [],
+    variables: row.variables ?? [],
+    isActive: row.is_active,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
 
 export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'templates:read')) return errorJson('Missing permission: templates:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const template = stubTemplates.find(t => t.id === id)
-
-    if (!template) {
-      const response = NextResponse.json({ error: 'Template not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: template })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const rows = await db.select().from(email_templates).where(eq(email_templates.id, id)).limit(1)
+    if (!rows[0]) return errorJson('Template not found', 404)
+    return json(serialize(rows[0]))
+  })
 })
 
 export const PATCH = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'templates:write')) return errorJson('Missing permission: templates:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const template = stubTemplates.find(t => t.id === id)
-
-    if (!template) {
-      const response = NextResponse.json({ error: 'Template not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
     const body = await request.json()
-    const updated = { ...template, ...body, id, updatedAt: new Date().toISOString() }
 
-    const response = NextResponse.json({ data: updated })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const existing = await db.select().from(email_templates).where(eq(email_templates.id, id)).limit(1)
+    if (!existing[0]) return errorJson('Template not found', 404)
+
+    const updates: Record<string, unknown> = { updated_at: new Date() }
+    if (typeof body.name === 'string' && body.name.trim()) updates.name = body.name.trim().slice(0, 200)
+    if (typeof body.subject === 'string' && body.subject.trim()) updates.subject = body.subject.trim().slice(0, 500)
+    if (typeof body.content === 'string' && body.content.trim()) updates.html_body = body.content
+    if (typeof body.text === 'string' || body.text === null) updates.text_body = body.text ?? null
+    if (Array.isArray(body.blocks)) updates.blocks = body.blocks
+    if (Array.isArray(body.variables)) updates.variables = body.variables.map(String)
+    if (['marketing', 'transactional', 'flow', 'notification'].includes(body.category)) updates.category = body.category
+    if (typeof body.isActive === 'boolean') updates.is_active = body.isActive
+    if (body.description !== undefined) updates.description = body.description ? String(body.description) : null
+
+    const updated = await db.update(email_templates).set(updates).where(eq(email_templates.id, id)).returning()
+    return json(serialize(updated[0]))
+  })
 })
 
 export const DELETE = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'templates:write')) return errorJson('Missing permission: templates:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const template = stubTemplates.find(t => t.id === id)
+    // email_campaigns.template_id references templates with ON DELETE RESTRICT, so a
+    // template still attached to a campaign cannot be deleted — surface that clearly.
+    const inUse = await db.select({ id: email_campaigns.id }).from(email_campaigns).where(eq(email_campaigns.template_id, id)).limit(1)
+    if (inUse.length) return errorJson('Template is used by one or more campaigns', 409)
 
-    if (!template) {
-      const response = NextResponse.json({ error: 'Template not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: { deleted: true, id } })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const deleted = await db.delete(email_templates).where(eq(email_templates.id, id)).returning({ id: email_templates.id })
+    if (!deleted.length) return errorJson('Template not found', 404)
+    return json({ deleted: true, id })
+  })
 })
 
 export async function OPTIONS() {

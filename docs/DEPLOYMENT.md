@@ -279,3 +279,50 @@ When the monolith needs to split:
 3. Keep shared DB and shared packages
 4. Use event bus (Redis pub/sub) for cross-module communication
 5. Platform API stays in one app (it's just a thin REST layer)
+
+---
+
+## First deploy (required steps)
+
+The platform ships with an empty database. Before the first login works you must
+run migrations and the seed **once** against the production database:
+
+```bash
+# 1. Migrations (also run automatically on every container boot)
+DATABASE_URL=postgresql://… npx tsx scripts/migrate.ts
+
+# 2. Seed: roles, the first super_admin, the default pipeline, one API key
+DATABASE_URL=postgresql://… \
+SEED_ADMIN_EMAIL=you@gccstartup.com \
+SEED_ADMIN_PASSWORD='a-strong-password' \
+pnpm db:seed
+```
+
+The seed prints the API key **once** — store it in your password manager. It is
+stored only as a SHA-256 hash and cannot be recovered.
+
+## Required environment variables
+
+| Variable | Notes |
+|---|---|
+| `DATABASE_URL` | Set by compose from `POSTGRES_*` |
+| `JWT_SECRET` | **Must be set** to ≥32 random chars. Sessions fail without it |
+| `POSTGRES_PASSWORD` | Change the default before deploying |
+| `NEXT_PUBLIC_APP_URL` | Public origin, used in emails and webhooks |
+
+Everything else (R2, SES, Meta WhatsApp, Stripe, PostHog) is optional — the
+platform no-ops when a variable is unset rather than crashing.
+
+## Services
+
+| Service | Command | Notes |
+|---|---|---|
+| `app` | `docker-entrypoint.sh` → `node apps/web/server.js` | Runs migrations first, then serves on :3000 |
+| `worker` | `node worker.mjs` | Bundled by esbuild; processes the outbox, campaigns, flows, webhooks |
+
+## Logging in
+
+There is a login page at `/login`. It sets an HttpOnly `gcc_session` cookie;
+the middleware redirects unauthenticated visitors there. `POST /api/auth/login`
+returns the user, `GET /api/auth/me` validates the session, `POST
+/api/auth/logout` revokes it.

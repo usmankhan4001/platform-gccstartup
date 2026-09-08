@@ -1,24 +1,39 @@
-import { NextRequest, NextResponse } from 'next/server';
-// TODO: Replace with platform-specific DB client when available
-// import { prisma } from '@/lib/db';
-async function requireAuth(request: NextRequest) {
-  return { user: { id: 'stub-user', role: 'ADMIN' } };
-}
-const logger = { error: (data: any, msg: string) => console.error(msg, data) };
+import { NextRequest, NextResponse } from 'next/server'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { flows } from '@gccstartup/db'
+import { authGuard, AuthError } from '@/lib/auth'
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const authResult = await requireAuth(request);
+type RouteContext = { params: Promise<{ id: string }> }
+
+export async function POST(request: NextRequest, { params }: RouteContext) {
   try {
-    const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const publish = body.publish !== false;
-    // TODO: Replace with platform DB client
-    const flow = null;
-    if (!flow) return NextResponse.json({ error: 'Flow not found' }, { status: 404 });
-    // TODO: Validate and update status
-    return NextResponse.json({ success: true, status: publish ? 'PUBLISHED' : 'DRAFT', flow: { id, status: publish ? 'PUBLISHED' : 'DRAFT' } });
-  } catch (error: any) {
-    logger.error({ error }, 'Error publishing flow');
-    return NextResponse.json({ error: 'Failed to update flow publish state' }, { status: 500 });
+    await authGuard(request, ['admin', 'super_admin'])
+    const { id } = await params
+    const body = await request.json().catch(() => ({}))
+    const publish = body?.publish !== false
+
+    const existing = await db.select().from(flows).where(eq(flows.id, id)).limit(1)
+    if (!existing[0]) return NextResponse.json({ error: 'Flow not found' }, { status: 404 })
+
+    if (publish) {
+      // A flow with no canvas nodes cannot run; refuse to activate it rather than
+      // enrolling contacts into a flow that does nothing.
+      const nodes = Array.isArray(existing[0].nodes) ? existing[0].nodes : []
+      if (!nodes.length) return NextResponse.json({ error: 'Flow has no canvas nodes to publish' }, { status: 400 })
+    }
+
+    const nextStatus = publish ? 'active' : 'draft'
+    const updated = await db
+      .update(flows)
+      .set({ status: nextStatus, updated_at: new Date(), ...(publish ? { version: existing[0].version + 1 } : {}) })
+      .where(eq(flows.id, id))
+      .returning()
+
+    return NextResponse.json({ success: true, status: nextStatus, flow: updated[0] })
+  } catch (error) {
+    if (error instanceof AuthError) return NextResponse.json({ error: error.message }, { status: error.status })
+    console.error('[api/flows/id/publish] failed', error)
+    return NextResponse.json({ error: 'Failed to update flow publish state' }, { status: 500 })
   }
 }

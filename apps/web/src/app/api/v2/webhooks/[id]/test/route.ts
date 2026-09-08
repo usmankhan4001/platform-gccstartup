@@ -1,92 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
-import { dispatchWebhook, getWebhookPayload } from '@/lib/webhooks'
+import { createHmac } from 'node:crypto'
+import { randomUUID, randomBytes } from 'node:crypto'
+import { eq, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { webhook_deliveries, webhooks } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../../_lib'
 
-// TODO: Replace with actual database queries
-const stubWebhooks = [
-  {
-    id: 'wh_1',
-    url: 'https://example.com/webhooks/gcc',
-    events: ['contact.created', 'contact.updated', 'deal.won'],
-    secret: 'whsec_abc123def456',
-    status: 'active',
-    description: 'Production webhook for CRM events',
-    createdAt: '2026-09-01T10:00:00Z',
-    updatedAt: '2026-09-01T10:00:00Z',
-  },
-  {
-    id: 'wh_2',
-    url: 'https://staging.example.com/webhooks',
-    events: ['lead.captured', 'ticket.created'],
-    secret: 'whsec_xyz789uvw012',
-    status: 'active',
-    description: 'Staging webhook for lead events',
-    createdAt: '2026-09-05T14:30:00Z',
-    updatedAt: '2026-09-05T14:30:00Z',
-  },
-]
+type Ctx = { params: Promise<{ id: string }> }
 
-const stubDeliveries: any[] = []
-
-type RouteContext = { params: Promise<{ id: string }> }
-
-// POST /api/v2/webhooks/[id]/test — Send a test event
-export const POST = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+/**
+ * Fires a real signed test POST to the endpoint. The delivery row is written FIRST
+ * with its payload and signature material, so a crash or a 30-second endpoint hang
+ * still leaves an auditable record; the outcome is then patched in. A network
+ * failure is recorded as a failed delivery, never raised as a 500.
+ */
+export const POST = requireApiKey(async (request: NextRequest, context: Ctx, key: any) => {
+  if (!hasPermission(key, 'webhooks:write')) return errorJson('Missing permission: webhooks:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const webhook = stubWebhooks.find(w => w.id === id)
 
-    if (!webhook) {
-      const response = NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
+    const rows = await db.select().from(webhooks).where(eq(webhooks.id, id)).limit(1)
+    const webhook = rows[0]
+    if (!webhook) return errorJson('Webhook not found', 404)
 
-    const body = await request.json().catch(() => ({}))
-    const event = body.event || 'webhook.test'
-
-    if (webhook.events.length > 0 && !webhook.events.includes(event)) {
-      // Allow test events even if not in subscribed events list
-      // But warn about it
-    }
-
-    const testData = getWebhookPayload(event, {
-      id: 'test_' + Date.now(),
-      message: 'This is a test webhook delivery',
+    const eventType = 'webhook.test'
+    const payload = {
+      id: randomBytes(16).toString('hex'),
+      event: eventType,
       timestamp: new Date().toISOString(),
-    })
+      data: { webhookId: webhook.id, message: 'This is a test delivery from the GCC Startup Platform' },
+    }
+    const body = JSON.stringify(payload)
+    const secret = webhook.secret ?? ''
 
-    const result = await dispatchWebhook(webhook.url, webhook.secret, event, testData)
+    const delivery = await db
+      .insert(webhook_deliveries)
+      .values({
+        id: randomUUID(),
+        webhook_id: webhook.id,
+        event_type: eventType,
+        payload,
+        status: 'pending',
+        attempts: 1,
+      })
+      .returning({ id: webhook_deliveries.id })
 
-    // Log the delivery attempt
-    const delivery = {
-      id: 'dlv_' + Date.now(),
-      webhookId: id,
-      event,
-      statusCode: result.statusCode,
-      success: result.success,
-      error: result.error,
-      attempts: result.attempts,
-      payload: testData,
-      deliveredAt: new Date().toISOString(),
+    let status = 'failed'
+    let responseStatus: number | null = null
+    let lastError: string | null = null
+    let responseBody: string | null = null
+
+    try {
+      const signature = createHmac('sha256', secret).update(body).digest('hex')
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Signature': `sha256=${signature}`,
+          'X-Webhook-Event': eventType,
+          'X-Webhook-ID': payload.id,
+          'User-Agent': 'GCCStartup-Webhook/2.0',
+        },
+        body,
+        signal: AbortSignal.timeout(10_000),
+      })
+      responseStatus = response.status
+      responseBody = (await response.text().catch(() => '')).slice(0, 2_000)
+      if (response.ok) {
+        status = 'delivered'
+      } else {
+        lastError = `HTTP ${response.status}`
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : 'Network error'
     }
 
-    stubDeliveries.push(delivery)
+    await db
+      .update(webhook_deliveries)
+      .set({
+        status,
+        response_status: responseStatus,
+        response_body: responseBody,
+        last_error: lastError,
+        delivered_at: status === 'delivered' ? new Date() : null,
+      })
+      .where(eq(webhook_deliveries.id, delivery[0].id))
 
-    const response = NextResponse.json({
-      data: {
-        deliveryId: delivery.id,
-        event,
-        success: result.success,
-        statusCode: result.statusCode,
-        error: result.error,
-        attempts: result.attempts,
-      },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    await db
+      .update(webhooks)
+      .set({
+        last_triggered_at: new Date(),
+        failure_count: status === 'delivered' ? sql`${webhooks.failure_count}` : sql`${webhooks.failure_count} + 1`,
+        updated_at: new Date(),
+      })
+      .where(eq(webhooks.id, webhook.id))
+
+    return json({
+      deliveryId: delivery[0].id,
+      event: eventType,
+      status,
+      responseStatus,
+      error: lastError,
+    }, status === 'delivered' ? 200 : 502)
+  })
 })
 
 export async function OPTIONS() {

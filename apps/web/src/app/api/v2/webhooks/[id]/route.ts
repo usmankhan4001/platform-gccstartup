@@ -1,121 +1,72 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { webhooks } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../_lib'
 
-// TODO: Replace with actual database queries
-const stubWebhooks = [
-  {
-    id: 'wh_1',
-    url: 'https://example.com/webhooks/gcc',
-    events: ['contact.created', 'contact.updated', 'deal.won'],
-    secret: 'whsec_abc123def456',
-    status: 'active',
-    description: 'Production webhook for CRM events',
-    createdAt: '2026-09-01T10:00:00Z',
-    updatedAt: '2026-09-01T10:00:00Z',
-  },
-  {
-    id: 'wh_2',
-    url: 'https://staging.example.com/webhooks',
-    events: ['lead.captured', 'ticket.created'],
-    secret: 'whsec_xyz789uvw012',
-    status: 'active',
-    description: 'Staging webhook for lead events',
-    createdAt: '2026-09-05T14:30:00Z',
-    updatedAt: '2026-09-05T14:30:00Z',
-  },
-]
-
-type RouteContext = { params: Promise<{ id: string }> }
+function serialize(row: typeof webhooks.$inferSelect, includeSecret = false) {
+  return {
+    id: row.id,
+    url: row.url,
+    events: row.events ?? [],
+    status: row.is_active ? 'active' : 'inactive',
+    ...(includeSecret ? { secret: row.secret } : {}),
+    lastTriggeredAt: row.last_triggered_at,
+    failureCount: row.failure_count,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
 
 export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'webhooks:read')) return errorJson('Missing permission: webhooks:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const webhook = stubWebhooks.find(w => w.id === id)
-
-    if (!webhook) {
-      const response = NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: webhook })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const rows = await db.select().from(webhooks).where(eq(webhooks.id, id)).limit(1)
+    if (!rows[0]) return errorJson('Webhook not found', 404)
+    // The secret is only revealed with ?revealSecret=1 — a caller that lost it can
+    // re-fetch it explicitly rather than it leaking into every list response.
+    const reveal = new URL(request.url).searchParams.get('revealSecret') === '1'
+    return json(serialize(rows[0], reveal))
+  })
 })
 
 export const PATCH = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'webhooks:write')) return errorJson('Missing permission: webhooks:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const webhookIndex = stubWebhooks.findIndex(w => w.id === id)
-
-    if (webhookIndex === -1) {
-      const response = NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
     const body = await request.json()
-    const { url, events, secret, description, status } = body
 
-    if (url !== undefined) {
+    const existing = await db.select().from(webhooks).where(eq(webhooks.id, id)).limit(1)
+    if (!existing[0]) return errorJson('Webhook not found', 404)
+
+    const updates: Record<string, unknown> = { updated_at: new Date() }
+    if (typeof body.url === 'string' && body.url.trim()) {
       try {
-        new URL(url)
+        new URL(body.url.trim())
       } catch {
-        const response = NextResponse.json(
-          { error: 'Invalid URL format' },
-          { status: 400 }
-        )
-        return addCorsHeaders(response)
+        return errorJson('Invalid URL format', 400)
       }
+      updates.url = body.url.trim()
     }
+    if (Array.isArray(body.events) && body.events.length) updates.events = body.events.map(String).slice(0, 100)
+    if (typeof body.isActive === 'boolean') updates.is_active = body.isActive
+    if (typeof body.secret === 'string' && body.secret.trim()) updates.secret = body.secret.trim().slice(0, 255)
 
-    if (events !== undefined && (!Array.isArray(events) || events.length === 0)) {
-      const response = NextResponse.json(
-        { error: 'events must be a non-empty array' },
-        { status: 400 }
-      )
-      return addCorsHeaders(response)
-    }
-
-    const updated = {
-      ...stubWebhooks[webhookIndex],
-      ...(url !== undefined && { url }),
-      ...(events !== undefined && { events }),
-      ...(secret !== undefined && { secret }),
-      ...(description !== undefined && { description }),
-      ...(status !== undefined && { status }),
-      updatedAt: new Date().toISOString(),
-    }
-
-    stubWebhooks[webhookIndex] = updated
-
-    const response = NextResponse.json({ data: updated })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const updated = await db.update(webhooks).set(updates).where(eq(webhooks.id, id)).returning()
+    return json(serialize(updated[0]))
+  })
 })
 
 export const DELETE = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'webhooks:write')) return errorJson('Missing permission: webhooks:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const webhookIndex = stubWebhooks.findIndex(w => w.id === id)
-
-    if (webhookIndex === -1) {
-      const response = NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    stubWebhooks.splice(webhookIndex, 1)
-
-    const response = NextResponse.json({ data: { deleted: true, id } })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const deleted = await db.delete(webhooks).where(eq(webhooks.id, id)).returning({ id: webhooks.id })
+    if (!deleted.length) return errorJson('Webhook not found', 404)
+    return json({ deleted: true, id })
+  })
 })
 
 export async function OPTIONS() {

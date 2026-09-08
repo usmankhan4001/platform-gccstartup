@@ -1,107 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, addCorsHeaders } from '@/lib/api-auth'
+import { and, desc, eq, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { webhook_deliveries, webhooks } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, type RouteContext } from '../../../_lib'
 
-// TODO: Replace with actual database queries
-const stubWebhooks = [
-  { id: 'wh_1', url: 'https://example.com/webhooks/gcc', status: 'active' },
-  { id: 'wh_2', url: 'https://staging.example.com/webhooks', status: 'active' },
-]
+type Ctx = { params: Promise<{ id: string }> }
 
-const stubDeliveries = [
-  {
-    id: 'dlv_1',
-    webhookId: 'wh_1',
-    event: 'contact.created',
-    statusCode: 200,
-    success: true,
-    error: null,
-    attempts: 1,
-    payload: {
-      id: 'test_001',
-      event: 'contact.created',
-      timestamp: '2026-09-07T12:00:00Z',
-      data: { contact: { id: 'c_1', email: 'john@example.com', name: 'John Doe' }, source: 'form' },
-    },
-    deliveredAt: '2026-09-07T12:00:00Z',
-  },
-  {
-    id: 'dlv_2',
-    webhookId: 'wh_1',
-    event: 'deal.won',
-    statusCode: 500,
-    success: false,
-    error: 'HTTP 500: Internal Server Error',
-    attempts: 3,
-    payload: {
-      id: 'test_002',
-      event: 'deal.won',
-      timestamp: '2026-09-07T12:30:00Z',
-      data: { deal: { id: 'd_1', title: 'Enterprise Plan', value: 50000, currency: 'AED' }, contact: { id: 'c_2' } },
-    },
-    deliveredAt: '2026-09-07T12:30:00Z',
-  },
-  {
-    id: 'dlv_3',
-    webhookId: 'wh_2',
-    event: 'lead.captured',
-    statusCode: 200,
-    success: true,
-    error: null,
-    attempts: 1,
-    payload: {
-      id: 'test_003',
-      event: 'lead.captured',
-      timestamp: '2026-09-07T14:00:00Z',
-      data: { lead: { id: 'l_1', email: 'jane@example.com', source: 'website', tool: 'contact-form' } },
-    },
-    deliveredAt: '2026-09-07T14:00:00Z',
-  },
-]
-
-type RouteContext = { params: Promise<{ id: string }> }
-
-export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+export const GET = requireApiKey(async (request: NextRequest, context: Ctx, key: any) => {
+  if (!hasPermission(key, 'webhooks:read')) return errorJson('Missing permission: webhooks:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const webhook = stubWebhooks.find(w => w.id === id)
-
-    if (!webhook) {
-      const response = NextResponse.json({ error: 'Webhook not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const { page, limit, offset } = parsePagination(request)
+    const { page, limit, offset } = paginationFrom(request)
     const { searchParams } = new URL(request.url)
     const event = searchParams.get('event')
-    const status = searchParams.get('status') // 'success' | 'failed'
+    const status = searchParams.get('status')
 
-    let deliveries = stubDeliveries.filter(d => d.webhookId === id)
+    const webhook = await db.select({ id: webhooks.id }).from(webhooks).where(eq(webhooks.id, id)).limit(1)
+    if (!webhook.length) return errorJson('Webhook not found', 404)
 
-    if (event) {
-      deliveries = deliveries.filter(d => d.event === event)
-    }
+    const filters: Array<any> = [eq(webhook_deliveries.webhook_id, id)]
+    if (event) filters.push(eq(webhook_deliveries.event_type, event))
+    if (status === 'success') filters.push(eq(webhook_deliveries.status, 'delivered'))
+    else if (status === 'failed') filters.push(eq(webhook_deliveries.status, 'failed'))
+    const where = and(...filters)
 
-    if (status === 'success') {
-      deliveries = deliveries.filter(d => d.success)
-    } else if (status === 'failed') {
-      deliveries = deliveries.filter(d => !d.success)
-    }
+    const [rows, totals] = await Promise.all([
+      db.select().from(webhook_deliveries).where(where).orderBy(desc(webhook_deliveries.created_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(webhook_deliveries).where(where),
+    ])
 
-    // Sort by most recent first
-    deliveries.sort((a, b) => new Date(b.deliveredAt).getTime() - new Date(a.deliveredAt).getTime())
-
-    const total = deliveries.length
-    const paginated = deliveries.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    return json(rows.map((row) => ({
+      id: row.id,
+      webhookId: row.webhook_id,
+      event: row.event_type,
+      payload: row.payload,
+      status: row.status,
+      attempts: row.attempts,
+      responseStatus: row.response_status,
+      error: row.last_error,
+      deliveredAt: row.delivered_at,
+      createdAt: row.created_at,
+    })), 200, metaFor(page, limit, totals[0]?.count ?? 0))
+  })
 })
 
 export async function OPTIONS() {

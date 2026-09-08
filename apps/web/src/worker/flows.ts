@@ -1,77 +1,50 @@
-// TODO: Replace with platform-specific DB client when available
-// import { prisma } from '@/lib/db';
-// import { WhatsAppClient } from '@/lib/whatsapp/client';
-// import { logger } from '@/lib/logger';
+// Inbound WhatsApp flow engine. Delegates to the shared inbound router in
+// lib/whatsapp, which interprets keyword automations stored as `flows` rows.
 
-const logger = { info: (d: any, m: string) => console.log(m, d), error: (d: any, m: string) => console.error(m, d) };
-
-export interface FlowNodeData {
-  label?: string;
-  type?: string;
-  text?: string;
-  templateName?: string;
-  buttons?: { id: string; title: string; nextNodeId?: string }[];
-  field?: string;
-  operator?: 'equals' | 'contains' | 'greater_than' | 'less_than';
-  value?: string;
-  actionType?: 'ADD_TAG' | 'REMOVE_TAG' | 'ADD_TO_GROUP' | 'UPDATE_CONTACT';
-  targetId?: string;
-  attributeKey?: string;
-  attributeValue?: string;
-}
-
-export interface FlowNode {
-  id: string;
-  type: string;
-  data: FlowNodeData;
-  position?: { x: number; y: number };
-}
-
-export interface FlowEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string;
-}
+import { processInboundWhatsAppMessage } from '../lib/whatsapp/inbound-router'
+import { db } from '../lib/db'
+import { conversations } from '@gccstartup/db'
+import { eq, and, desc } from 'drizzle-orm'
 
 /**
- * Initiates or advances an active flow run for an incoming event
+ * Initiates or advances an active flow run for an incoming message.
+ * Returns true when a flow handled the message.
  */
 export async function processInboundFlow(params: {
-  contactId: string;
-  phoneNumber: string;
-  bodyText: string;
+  contactId: string
+  phoneNumber: string
+  bodyText: string
 }): Promise<boolean> {
-  const { contactId, phoneNumber, bodyText } = params;
-
   try {
-    // TODO: Replace with platform DB client
-    // Check for active flow run
-    // const activeRun = await prisma.flowRun.findFirst({ where: { contactId, status: 'ACTIVE' }, include: { flow: true } });
-    // if (activeRun) return await advanceFlowRun(activeRun.id, bodyText);
+    const convo = await db
+      .select({ id: conversations.id })
+      .from(conversations)
+      .where(and(eq(conversations.contact_id, params.contactId), eq(conversations.state, 'open')))
+      .orderBy(desc(conversations.created_at))
+      .limit(1)
 
-    // Check published flows for trigger match
-    // const publishedFlows = await prisma.flow.findMany({ where: { status: 'PUBLISHED' } });
-    // ... matching logic ...
+    return await processInboundWhatsAppMessage({
+      conversationId: convo[0]?.id || '',
+      leadId: params.contactId,
+      phoneNumber: params.phoneNumber,
+      body: params.bodyText,
+      messageType: 'text',
+    })
   } catch (error) {
-    logger.error({ error }, '[FlowEngine] Error matching flow');
+    console.error('[FlowEngine] Error matching flow', error)
+    return false
   }
-
-  return false;
 }
 
 /**
- * Advances a flow run step-by-step through its node graph
+ * Advances a flow run step-by-step. The shared router owns the node graph
+ * interpreter; run advancement happens inside it, so this is a thin wrapper
+ * kept for backwards compatibility with the inbound event chain.
  */
 export async function advanceFlowRun(runId: string, userInput?: string): Promise<boolean> {
-  // TODO: Replace with platform DB client and WhatsApp client
-  // This is the core flow engine that processes nodes:
-  // - message: Send text, interpolate variables, follow edge
-  // - quick_reply/buttons: Send options, pause for user input
-  // - condition: Evaluate expression, branch true/false
-  // - action: Add tag, add to group, update contact variable
-  // - trigger: Starting point, follow edge
-  // - end: Stop flow
-
-  return false;
+  void runId
+  void userInput
+  // Run-state advancement is handled inside processInboundWhatsAppMessage —
+  // there is no separate flow_run table in the platform schema.
+  return false
 }

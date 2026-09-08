@@ -1,131 +1,191 @@
 /**
- * Typed access to the email-platform collections.
+ * Typed access to the email-platform tables.
  *
- * `src/lib/directus.ts` owns the `Schema` type that the service-token client is
- * generic over, and it does not yet list the seven collections added by
- * directus/scripts/add-email-platform-collections.ts. Rather than edit that file,
- * this module widens the schema locally and hands back the same underlying client.
- * When the shared Schema learns these collections, delete `EmailSchema` and this
- * cast — nothing else has to change.
+ * The email platform reads and writes through the shared Drizzle instance
+ * (`@/lib/db`, backed by `@gccstartup/db`). The item types below are the wire shape
+ * the rest of the email modules and the admin API speak; the `to*Item` mappers turn
+ * database rows into them so the rest of the layer never touches raw column names.
  */
-// TODO: Replace with Drizzle queries
-type DirectusClient<T> = any
-type RestClient<T> = any
-import { directus, type LeadItem } from '@/lib/directus'
+import { db } from '@/lib/db'
+import {
+  email_campaigns,
+  email_suppressions,
+  email_templates,
+  flow_enrollments,
+  flow_steps,
+  flows,
+} from '@gccstartup/db'
+import { eq } from 'drizzle-orm'
 
 export type EmailTemplateItem = {
   id: string
   name: string
-  slug: string
-  subject?: string | null
+  subject: string
   preheader?: string | null
   blocks?: unknown
-  html?: string | null
+  html: string
   text?: string | null
   category?: 'marketing' | 'transactional' | 'flow' | 'notification' | null
-  is_active?: boolean | null
-  date_created?: string
-  date_updated?: string
+  is_active: boolean
+  created_at: Date
+  updated_at: Date
 }
 
-export type EmailCampaignStatus = 'draft' | 'scheduled' | 'queued' | 'sending' | 'sent' | 'failed' | 'cancelled'
+export type EmailCampaignStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'sending'
+  | 'paused'
+  | 'sent'
+  | 'cancelled'
+  | 'failed'
 
 export type EmailCampaignItem = {
   id: string
   name: string
-  subject?: string | null
-  preheader?: string | null
-  template?: string | EmailTemplateItem | null
-  segment?: string | EmailSegmentItem | null
-  blocks?: unknown
-  segment_filter?: unknown
-  html_snapshot?: string | null
-  text_snapshot?: string | null
-  status?: EmailCampaignStatus | null
-  scheduled_at?: string | null
-  sent_at?: string | null
-  sender_campaign_id?: string | null
-  sender_group_id?: string | null
-  recipient_count?: number | null
-  stats?: Record<string, unknown> | null
-  last_error?: string | null
-  date_created?: string
-  date_updated?: string
+  template_id: string
+  audience_filter?: unknown
+  status: EmailCampaignStatus
+  scheduled_at: Date | null
+  started_at: Date | null
+  completed_at: Date | null
+  recipient_count: number | null
+  variant_b_subject: string | null
+  variant_b_template_id: string | null
+  test_split_percent: number | null
+  winner_criteria: string | null
+  winner_variant: string | null
+  error: string | null
+  created_at: Date
+  updated_at: Date
 }
 
-export type EmailSegmentItem = {
-  id: string
-  name: string
-  slug: string
-  description?: string | null
-  filter?: unknown
-  date_created?: string
-}
-
-export type EmailFlowTriggerType = 'manual' | 'lead_created' | 'lead_status' | 'segment'
+export type EmailFlowTriggerType =
+  | 'manual'
+  | 'lead_created'
+  | 'form_submitted'
+  | 'tag_added'
+  | 'deal_stage_changed'
+  | 'date_based'
+  | 'event_based'
 
 export type EmailFlowItem = {
   id: string
   name: string
-  slug: string
-  description?: string | null
-  trigger_type?: EmailFlowTriggerType | null
-  trigger_config?: unknown
-  status?: 'draft' | 'active' | 'paused' | 'archived' | null
-  date_created?: string
+  description: string | null
+  trigger_type: EmailFlowTriggerType
+  trigger_config: Record<string, unknown>
+  status: 'draft' | 'active' | 'paused' | 'archived'
+  created_at: Date
+  updated_at: Date
 }
 
 export type EmailFlowStepItem = {
   id: string
-  flow: string | EmailFlowItem
-  sort?: number | null
-  delay_minutes?: number | null
-  template?: string | EmailTemplateItem | null
-  subject_override?: string | null
-  condition?: unknown
+  flow_id: string
+  step_index: number
+  step_type: string
+  config: Record<string, unknown>
 }
 
 export type EmailFlowEnrollmentItem = {
   id: string
-  flow: string | EmailFlowItem
-  lead: string | LeadItem
+  flow_id: string
+  contact_id: string
   enrollment_key: string
-  current_step?: number | null
-  status?: 'active' | 'completed' | 'cancelled' | 'failed' | null
-  next_run_at?: string | null
-  enrolled_at?: string | null
-  last_step_at?: string | null
-  completed_at?: string | null
-  last_error?: string | null
+  status: 'active' | 'completed' | 'cancelled' | 'paused'
+  current_step: number
+  next_run_at: Date | null
+  started_at: Date
+  completed_at: Date | null
 }
 
 export type EmailSuppressionItem = {
   id: string
   email: string
-  reason?: 'unsubscribed' | 'bounced' | 'spam_reported' | 'manual' | 'invalid' | null
-  source?: string | null
-  suppressed_at?: string | null
-  metadata?: Record<string, unknown> | null
+  reason: 'hard_bounce' | 'complaint' | 'manual' | 'invalid'
+  source: string | null
+  detail: string | null
+  contact_id: string | null
+  created_at: Date
 }
 
-export type EmailSchema = { [key: string]: any } & {
-  email_templates: EmailTemplateItem[]
-  email_campaigns: EmailCampaignItem[]
-  email_segments: EmailSegmentItem[]
-  email_flows: EmailFlowItem[]
-  email_flow_steps: EmailFlowStepItem[]
-  email_flow_enrollments: EmailFlowEnrollmentItem[]
-  email_suppressions: EmailSuppressionItem[]
-}
+/**
+ * Legacy compatibility type. The email modules used to take a Directus client as
+ * their first argument; they are Drizzle-backed now and the parameter is accepted
+ * but ignored, so existing call sites keep compiling.
+ */
+export type EmailClient = { readonly __emailClient: true }
 
-export type EmailClient = DirectusClient<EmailSchema> & RestClient<EmailSchema>
-
-/** Service-token client, widened to the email collections. Server-only. */
+/** Compatibility shim for old call sites — the client parameter is no longer used. */
 export function emailDirectus(): EmailClient {
-  return directus() as unknown as EmailClient
+  return { __emailClient: true }
 }
 
-/** Relations come back either as a bare id or as an expanded object. */
+export async function getTemplateById(id: string): Promise<EmailTemplateItem | null> {
+  const rows = await db.select().from(email_templates).where(eq(email_templates.id, id)).limit(1)
+  const row = rows[0]
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name,
+    subject: row.subject,
+    preheader: null,
+    blocks: row.blocks ?? null,
+    html: row.html_body,
+    text: row.text_body,
+    category: row.category,
+    is_active: row.is_active,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export async function getCampaignById(id: string): Promise<EmailCampaignItem | null> {
+  const rows = await db.select().from(email_campaigns).where(eq(email_campaigns.id, id)).limit(1)
+  return (rows[0] as EmailCampaignItem | undefined) ?? null
+}
+
+export async function getFlowById(id: string): Promise<EmailFlowItem | null> {
+  const rows = await db.select().from(flows).where(eq(flows.id, id)).limit(1)
+  const row = rows[0]
+  if (!row) return null
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    trigger_type: row.trigger_type,
+    trigger_config: row.trigger_config ?? {},
+    status: row.status,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+export async function loadFlowStepsById(flowId: string): Promise<EmailFlowStepItem[]> {
+  const rows = await db.select().from(flow_steps).where(eq(flow_steps.flow_id, flowId))
+  return rows
+    .map((row) => ({
+      id: row.id,
+      flow_id: row.flow_id,
+      step_index: row.step_index,
+      step_type: row.step_type,
+      config: row.config ?? {},
+    }))
+    .sort((left, right) => left.step_index - right.step_index)
+}
+
+export async function getEnrollmentById(id: string): Promise<EmailFlowEnrollmentItem | null> {
+  const rows = await db.select().from(flow_enrollments).where(eq(flow_enrollments.id, id)).limit(1)
+  return (rows[0] as EmailFlowEnrollmentItem | undefined) ?? null
+}
+
+export async function getSuppressionByEmail(email: string): Promise<EmailSuppressionItem | null> {
+  const rows = await db.select().from(email_suppressions).where(eq(email_suppressions.email, email)).limit(1)
+  return (rows[0] as EmailSuppressionItem | undefined) ?? null
+}
+
+/** Relations used to come back either as a bare id or as an expanded object. */
 export function relationId(value: unknown): string | null {
   if (typeof value === 'string') return value || null
   if (value && typeof value === 'object' && typeof (value as { id?: unknown }).id === 'string') {

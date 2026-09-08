@@ -3,4 +3,4 @@ export {
   getPresignedDownloadUrl,
   deleteFile,
   listFiles,
-} from './r2.js'
+} from './r2'

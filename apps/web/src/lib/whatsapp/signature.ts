@@ -1,7 +1,5 @@
 import crypto from 'crypto';
-// import { logger } from '@/lib/logger';
 
-// TODO: Replace with platform logger
 const logger = {
   warn: (...args: any[]) => console.warn('[WhatsApp]', ...args),
   error: (...args: any[]) => console.error('[WhatsApp]', ...args),

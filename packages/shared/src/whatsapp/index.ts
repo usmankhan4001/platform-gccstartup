@@ -1,1 +1,1 @@
-export { sendText, sendTemplate, sendTemplateWithMedia } from './client.js'
+export { sendText, sendTemplate, sendTemplateWithMedia } from './client'

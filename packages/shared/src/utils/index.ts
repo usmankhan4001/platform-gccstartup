@@ -6,11 +6,11 @@ export {
   ConflictError,
   logError,
   handleApiError,
-} from './errors.js'
+} from './errors'
 
-export { logger } from './logger.js'
+export { logger } from './logger'
 
-export { checkRateLimit, type RateLimitResult } from './rate-limit.js'
+export { checkRateLimit, type RateLimitResult } from './rate-limit'
 
 export {
   emailSchema,
@@ -21,4 +21,4 @@ export {
   validate,
   type PaginationInput,
   type DateRangeInput,
-} from './validation.js'
+} from './validation'

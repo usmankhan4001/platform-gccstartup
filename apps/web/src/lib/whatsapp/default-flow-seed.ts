@@ -1,41 +1,34 @@
-// TODO: Replace Prisma imports with Drizzle queries
-// import { prisma } from '@/lib/prisma';
+// Seeds the built-in example Lead Qualification flow as a real `flows` row so it
+// is visible and editable rather than a hidden, code-defined system.
+//
+// Storage note: the platform schema has no dedicated "tag" table — contact tags
+// are a jsonb string array on `contacts` — so tag actions reference tag NAMES
+// directly instead of tag ids.
+//
+// Uses only node types the runtime interpreter (inbound-router.ts) supports:
+// trigger, message, quick_reply, condition, action (ADD_TAG).
 
-// TODO: Replace with platform logger
+import { randomUUID } from 'crypto'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { flows } from '@gccstartup/db'
+
 const logger = {
-  warn: (...args: any[]) => console.warn('[DefaultFlow]', ...args),
-  error: (...args: any[]) => console.error('[DefaultFlow]', ...args),
-  info: (...args: any[]) => console.info('[DefaultFlow]', ...args),
-};
+  warn: (...args: unknown[]) => console.warn('[DefaultFlow]', ...args),
+  error: (...args: unknown[]) => console.error('[DefaultFlow]', ...args),
+  info: (...args: unknown[]) => console.info('[DefaultFlow]', ...args),
+}
 
-const DEFAULT_FLOW_NAME = 'Lead Qualification (Example)';
+const DEFAULT_FLOW_NAME = 'Lead Qualification (Example)'
 
-/**
- * Ensures the built-in example Lead Qualification flow exists as a real
- * Visual Flow Builder record (Flow + node graph), so it's visible and
- * editable in the canvas rather than a hidden, code-defined system.
- *
- * Uses only node types the runtime interpreter (src/worker/flows.ts) and
- * canvas editor (src/app/flows/[id]/page.tsx) both support: trigger,
- * message, quick_reply, condition, action. There is no native WhatsApp
- * interactive-list support or multi-factor scoring in this engine, so the
- * "lead temperature" tagging below is a simple approximation based on the
- * timeline answer alone, not the old weighted score.
- */
 export async function ensureDefaultFlow(): Promise<void> {
   try {
-    // TODO: Replace with Drizzle queries
-    // const existing = await prisma.flow.findFirst({ where: { name: DEFAULT_FLOW_NAME } });
-    const existing = null as any;
-    if (existing) return;
-
-    // TODO: Replace with Drizzle queries for tags
-    // const qualifiedTag = await prisma.tag.upsert({ ... });
-    // const hotTag = await prisma.tag.upsert({ ... });
-    // const warmTag = await prisma.tag.upsert({ ... });
-    const qualifiedTag = { id: 'tag_qualified' } as any;
-    const hotTag = { id: 'tag_hot' } as any;
-    const warmTag = { id: 'tag_warm' } as any;
+    const existing = await db
+      .select({ id: flows.id })
+      .from(flows)
+      .where(eq(flows.name, DEFAULT_FLOW_NAME))
+      .limit(1)
+    if (existing.length > 0) return
 
     const nodes = [
       {
@@ -50,7 +43,7 @@ export async function ensureDefaultFlow(): Promise<void> {
         position: { x: 400, y: 150 },
         data: {
           label: 'Intro',
-          text: "Let's find the right fit for you, {{firstName}}! I'll ask a few quick questions.",
+          text: "Let's find the right fit for you, {{first_name}}! I'll ask a few quick questions.",
         },
       },
       {
@@ -120,7 +113,7 @@ export async function ensureDefaultFlow(): Promise<void> {
         id: 'tag_qualified',
         type: 'action',
         position: { x: 400, y: 900 },
-        data: { label: 'Tag: Qualified Lead', actionType: 'ADD_TAG', targetId: qualifiedTag.id },
+        data: { label: 'Tag: Qualified Lead', actionType: 'ADD_TAG', tagName: 'qualified-lead' },
       },
       {
         id: 'check_hot',
@@ -132,7 +125,7 @@ export async function ensureDefaultFlow(): Promise<void> {
         id: 'tag_hot',
         type: 'action',
         position: { x: 150, y: 1200 },
-        data: { label: 'Tag: HOT Lead', actionType: 'ADD_TAG', targetId: hotTag.id },
+        data: { label: 'Tag: HOT Lead', actionType: 'ADD_TAG', tagName: 'hot-lead' },
       },
       {
         id: 'check_warm',
@@ -144,7 +137,7 @@ export async function ensureDefaultFlow(): Promise<void> {
         id: 'tag_warm',
         type: 'action',
         position: { x: 650, y: 1350 },
-        data: { label: 'Tag: WARM Lead', actionType: 'ADD_TAG', targetId: warmTag.id },
+        data: { label: 'Tag: WARM Lead', actionType: 'ADD_TAG', tagName: 'warm-lead' },
       },
       {
         id: 'completion_msg',
@@ -155,7 +148,7 @@ export async function ensureDefaultFlow(): Promise<void> {
           text: '🎉 Thank you for sharing your details!\n\nOur team has received your qualification profile and will reach out to you shortly right here on WhatsApp.',
         },
       },
-    ];
+    ]
 
     const edges = [
       { id: 'e1', source: 'trigger_1', target: 'intro_msg' },
@@ -171,22 +164,26 @@ export async function ensureDefaultFlow(): Promise<void> {
       { id: 'e11', source: 'check_warm', target: 'tag_warm', sourceHandle: 'true' },
       { id: 'e12', source: 'check_warm', target: 'completion_msg', sourceHandle: 'false' },
       { id: 'e13', source: 'tag_warm', target: 'completion_msg' },
-    ];
+    ]
 
-    // TODO: Replace with Drizzle insert
-    // await prisma.flow.create({
-    //   data: {
-    //     name: DEFAULT_FLOW_NAME,
-    //     description: 'Example 4-step qualification funnel — customize the steps and questions for your own business',
-    //     status: 'PUBLISHED',
-    //     startNodeId: 'trigger_1',
-    //     nodesJson: JSON.stringify(nodes),
-    //     edgesJson: JSON.stringify(edges),
-    //   },
-    // });
+    await db.insert(flows).values({
+      id: randomUUID(),
+      name: DEFAULT_FLOW_NAME,
+      description:
+        'Example 4-step qualification funnel — customize the steps and questions for your own business',
+      status: 'active',
+      trigger_type: 'event_based',
+      trigger_config: {
+        trigger: 'whatsapp.message_received',
+        keyword: 'qualify',
+        match_type: 'exact',
+      },
+      nodes,
+      edges,
+    })
 
-    logger.info('[Database] Example Lead Qualification flow registered in Visual Flow Builder');
-  } catch (err: any) {
-    logger.error(`Error ensuring default example flow: ${err}`);
+    logger.info('[Database] Example Lead Qualification flow registered in flows table')
+  } catch (err) {
+    logger.error(`Error ensuring default example flow: ${err}`)
   }
 }

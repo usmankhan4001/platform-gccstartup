@@ -1,17 +1,26 @@
-node_modules
-.next
-dist
+# Dependencies — must match at every level, otherwise the host's node_modules
+# (with Windows absolute symlinks) is copied over the Linux install.
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/coverage
+
 .git
+.gitignore
+**/.env
+**/.env.local
+**/.env.production
 .env
 .env.local
-.env.production
+
 *.md
 !README.md
 docs/
 archive/
 tests/
-*.test.ts
-*.test.tsx
+**/*.test.ts
+**/*.test.tsx
 .vitest
-coverage/
-.turbo
+worker.js
+docker-compose.override.yml

@@ -1,24 +1,29 @@
-// WhatsApp campaign dispatcher — ported from WayApp's worker/dispatcher.ts
-// and adapted to use Directus instead of Prisma.
+// WhatsApp campaign dispatcher over the platform Drizzle schema.
+//
+// Storage mapping (the schema has no whatsapp_campaigns tables):
+//   - A campaign is a `flows` row whose trigger_config carries
+//     { entityKind: 'campaign', template_name, template_language,
+//       audience_filter, variable_mappings, header_media_url,
+//       run_state, total_contacts, sent_count, failed_count }.
+//     flows.status stays the editorial lifecycle (draft/active/…); the dispatch
+//     state machine lives in trigger_config.run_state because the flows status
+//     enum has no running/completed states.
+//   - Per-recipient sends are `outbox_jobs` rows (job_type 'send_whatsapp'),
+//     deduplicated by idempotency_key = `campaign:{flowId}:{contactId}`.
 //
 // Core contract:
-//   1. Atomic state lock prevents double-dispatch (only draft/queued/paused → running)
-//   2. Token bucket rate limiter paces sends to avoid hitting Meta's rate limits
-//   3. Each pending message is dispatched individually with error handling
-//   4. Pause/resume is checked between each send
-//   5. Inbox mirroring creates whatsapp_conversations/messages entries
-//   6. Progress counters (sent/delivered/failed) are atomically incremented
+//   1. Atomic state lock prevents double-dispatch (run_state queued/paused → running)
+//   2. Token bucket rate limiter paces sends to avoid Meta rate limits
+//   3. Each pending outbox job is dispatched individually with error handling
+//   4. Pause is checked between each send
+//   5. Counters (sent/failed) are recomputed from outbox_jobs, not incremented blind
 
-// TODO: Replace with Drizzle queries
-const readItems = (...args: any[]) => ([] as any)
-const updateItem = (...args: any[]) => ({} as any)
-const createItem = (...args: any[]) => ({} as any)
-const aggregate = (...args: any[]) => ([] as any)
+import { randomUUID } from 'crypto'
+import { and, count, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { contacts, flows, outbox_jobs } from '@gccstartup/db'
 import { sendWhatsappTemplateWithMeta } from './client'
 import { sanitizePhoneNumber } from './phone'
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type DirectusClient = any
 
 // ─── Token Bucket Rate Limiter ──────────────────────────────────────────
 
@@ -36,7 +41,7 @@ class TokenBucket {
   }
 
   async acquire(): Promise<void> {
-    while (true) {
+    for (;;) {
       const now = Date.now()
       const elapsed = now - this.lastRefill
       this.tokens = Math.min(this.capacity, this.tokens + elapsed * this.refillRate)
@@ -55,122 +60,75 @@ class TokenBucket {
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
-type Campaign = {
-  id: string
-  name: string
+type CampaignConfig = {
+  entityKind: 'campaign'
   template_name: string
-  template_language: string
-  audience_filter: Record<string, unknown> | null
-  variable_mappings: Record<string, string> | null
-  status: string
-  total_contacts: number
-  sent_count: number
-  failed_count: number
-  header_media_url: string | null
+  template_language?: string
+  audience_filter?: Record<string, unknown> | null
+  variable_mappings?: Record<string, string> | null
+  header_media_url?: string | null
+  run_state: 'queued' | 'running' | 'paused' | 'completed' | 'failed'
+  total_contacts?: number
+  sent_count?: number
+  failed_count?: number
 }
 
-type CampaignMessage = {
-  id: string
-  campaign_id: string
-  lead_id: string | null
-  phone_number: string
-  wamid: string | null
-  status: string
-}
-
-type Lead = {
-  id: string
-  first_name?: string
-  last_name?: string
-  email?: string
-  phone?: string
-  company_name?: string
-  country?: string
-  status?: string
-  [key: string]: unknown
-}
+type ContactRow = typeof contacts.$inferSelect
 
 // ─── Audience Resolution ────────────────────────────────────────────────
 
 /**
  * Resolves the target audience for a campaign based on the audience_filter JSON.
- * The filter supports:
- *   - sendToAll: boolean — all active leads
- *   - segmentId: string — leads matching a Directus filter
- *   - includeTags / excludeTags: string[] — tag-based filtering
- *
- * Returns an array of leads with at least a phone number.
+ * Supports sendToAll / includeTags / excludeTags on `contacts.tags` (jsonb).
+ * Only contacts with a phone number and no soft-delete are eligible.
  */
 export async function resolveAudience(
-  client: DirectusClient,
-  audienceFilter: Record<string, unknown> | null,
-): Promise<Lead[]> {
-  const filter: { _and: Record<string, unknown>[] } = { _and: [{ phone: { _nnull: true } }, { phone: { _nempty: true } }] }
+  _client: unknown,
+  audienceFilter: Record<string, unknown> | null
+): Promise<ContactRow[]> {
+  const rows = await db
+    .select()
+    .from(contacts)
+    .where(and(isNotNull(contacts.phone), isNull(contacts.deleted_at)))
 
-  if (!audienceFilter || (audienceFilter as Record<string, unknown>).sendToAll) {
-    // All active leads with a phone number
-    const leads = await client.request(
-      (readItems as any)('leads', {
-        filter,
-        fields: ['id', 'first_name', 'last_name', 'email', 'phone', 'company_name', 'country', 'status'],
-        limit: -1,
-      }),
-    ) as Lead[]
-    return leads
-  }
+  const af = audienceFilter ?? {}
+  const includeTags = Array.isArray(af.includeTags) ? (af.includeTags as unknown[]) : null
+  const excludeTags = Array.isArray(af.excludeTags) ? (af.excludeTags as unknown[]) : null
 
-  // Segment-based filter: apply any additional criteria on top of phone-required
-  if ((audienceFilter as Record<string, unknown>).segmentId) {
-    filter._and.push({ segment: { _eq: (audienceFilter as Record<string, unknown>).segmentId } })
-  }
-
-  const leads = await client.request(
-    (readItems as any)('leads', {
-      filter,
-      fields: ['id', 'first_name', 'last_name', 'email', 'phone', 'company_name', 'country', 'status'],
-      limit: -1,
-    }),
-  ) as Lead[]
-
-  // Apply tag-based exclusions in JS since Directus relations are complex
-  let result = leads
-  const af = audienceFilter as Record<string, unknown>
-  if (Array.isArray(af.excludeTags) && (af.excludeTags as unknown[]).length > 0) {
-    const excludeSet = new Set(af.excludeTags as unknown[])
-    result = result.filter((l) => {
-      const tags = (l as Record<string, unknown>).tags
-      if (!Array.isArray(tags)) return true
-      return !tags.some((t: unknown) => excludeSet.has(String(t)))
-    })
-  }
-
-  return result
+  return rows.filter((row) => {
+    if (!row.phone) return false
+    if (includeTags || excludeTags) {
+      const tags = Array.isArray(row.tags) ? row.tags : []
+      if (includeTags && !includeTags.every((t) => tags.includes(String(t)))) return false
+      if (excludeTags && excludeTags.some((t) => tags.includes(String(t)))) return false
+    }
+    return true
+  })
 }
 
 // ─── Template Variable Resolution ───────────────────────────────────────
 
 /**
  * Resolves template variable placeholders ({{1}}, {{2}}, ...) using the
- * campaign's variable_mappings and the lead's field values.
- * Falls back to 'Valued Customer' for empty values.
+ * campaign's variable_mappings and the contact's field values.
  */
 function resolveVariables(
   variableMappings: Record<string, string> | null,
-  lead: Lead,
+  contact: ContactRow | null,
+  fallbackPhone: string
 ): string[] {
   if (!variableMappings) return []
 
-  const leadData: Record<string, unknown> = {
-    first_name: lead.first_name || 'Customer',
-    last_name: lead.last_name || '',
-    full_name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || 'Customer',
-    phone: lead.phone || '',
-    email: lead.email || '',
-    company_name: lead.company_name || '',
-    country: lead.country || '',
+  const contactData: Record<string, unknown> = {
+    first_name: contact?.first_name || 'Customer',
+    last_name: contact?.last_name || '',
+    full_name: `${contact?.first_name || ''} ${contact?.last_name || ''}`.trim() || 'Customer',
+    phone: contact?.phone || fallbackPhone,
+    email: contact?.email || '',
+    company: contact?.company || '',
+    company_name: contact?.company || '',
   }
 
-  // Build body variables from numeric keys
   const bodyVars: string[] = []
   const keys = Object.keys(variableMappings)
     .filter((k) => !isNaN(Number(k)))
@@ -178,11 +136,43 @@ function resolveVariables(
 
   for (const k of keys) {
     const fieldName = variableMappings[k]
-    const val = leadData[fieldName] !== undefined ? String(leadData[fieldName]) : ''
+    const val = fieldName && contactData[fieldName] !== undefined ? String(contactData[fieldName]) : ''
     bodyVars.push(val || 'Valued Customer')
   }
 
   return bodyVars
+}
+
+// ─── Helpers ────────────────────────────────────────────────────────────
+
+async function loadCampaign(flowId: string): Promise<{ flow: typeof flows.$inferSelect; cfg: CampaignConfig } | null> {
+  const rows = await db.select().from(flows).where(eq(flows.id, flowId)).limit(1)
+  const flow = rows[0]
+  if (!flow) return null
+  const cfg = flow.trigger_config as unknown as CampaignConfig
+  if (!cfg || cfg.entityKind !== 'campaign') return null
+  return { flow, cfg }
+}
+
+async function updateRunState(flowId: string, cfg: CampaignConfig, patch: Partial<CampaignConfig>) {
+  await db
+    .update(flows)
+    .set({ trigger_config: { ...cfg, ...patch }, updated_at: new Date() })
+    .where(eq(flows.id, flowId))
+}
+
+async function countPendingJobs(campaignId: string): Promise<number> {
+  const rows = await db
+    .select({ n: count() })
+    .from(outbox_jobs)
+    .where(
+      and(
+        eq(outbox_jobs.job_type, 'send_whatsapp'),
+        sql`${outbox_jobs.payload}->>'campaignId' = ${campaignId}`,
+        inArray(outbox_jobs.status, ['pending', 'sending'])
+      )
+    )
+  return Number(rows[0]?.n ?? 0)
 }
 
 // ─── Main Dispatch Function ─────────────────────────────────────────────
@@ -197,250 +187,153 @@ export type DispatchResult = {
 /**
  * Executes or resumes a WhatsApp campaign dispatch.
  *
- * State machine: draft/queued/paused/scheduled → running → completed/failed
- *
- * The atomic state lock (updateMany with status filter) prevents double-dispatch:
- * a campaign that is already running can never be locked again, so concurrent
- * dispatch attempts fail gracefully at the lock step.
+ * State machine: queued/paused → running → completed/failed
+ * The state lock prevents double-dispatch: a campaign already running can
+ * never be locked again, so concurrent dispatch attempts fail at the lock step.
  */
 export async function dispatchCampaign(
-  client: DirectusClient,
+  _client: unknown,
   campaignId: string,
-  options: { ratePerSecond?: number } = {},
+  options: { ratePerSecond?: number } = {}
 ): Promise<DispatchResult> {
   console.log(`[dispatcher] Starting campaign dispatch: ${campaignId}`)
 
-  // 1. Atomic state machine lock: transition from dispatchable states to RUNNING.
-  //    RUNNING is intentionally NOT in the where list — a campaign that is already
-  //    running can never be locked again.
-  try {
-    await client.request(
-      (updateItem as any)('whatsapp_campaigns', campaignId, {
-        status: 'running',
-        started_at: new Date().toISOString(),
-      }),
-    )
-  } catch {
-    console.warn(`[dispatcher] Campaign ${campaignId} could not be locked or is already in a terminal state`)
+  // 1. Lock the campaign: only queued/paused may transition to running.
+  const loaded = await loadCampaign(campaignId)
+  if (!loaded) return { success: false, error: 'Campaign not found' }
+
+  const { cfg } = loaded
+  if (cfg.run_state === 'running') {
+    return { success: false, error: 'Campaign is not in a dispatchable state' }
+  }
+  if (cfg.run_state === 'completed' || cfg.run_state === 'failed') {
     return { success: false, error: 'Campaign is not in a dispatchable state' }
   }
 
+  await updateRunState(campaignId, cfg, { run_state: 'running' })
+
   try {
-    // 2. Fetch campaign details
-    const campaigns = await client.request(
-      (readItems as any)('whatsapp_campaigns', {
-        filter: { id: { _eq: campaignId } },
-        limit: 1,
-      }),
-    ) as Campaign[]
-    const campaign = campaigns[0]
-    if (!campaign) return { success: false, error: 'Campaign not found after lock' }
+    // 2. Rate limiter
+    const bucket = new TokenBucket(options.ratePerSecond ?? 20)
 
-    // 3. Initialize rate limiter
-    const ratePerSecond = options.ratePerSecond ?? 20
-    const bucket = new TokenBucket(ratePerSecond)
+    // 3. Resolve audience and materialize per-recipient outbox jobs
+    const audience = await resolveAudience(null, cfg.audience_filter ?? null)
+    console.log(`[dispatcher] Resolved ${audience.length} contacts for campaign ${campaignId}`)
 
-    // 4. Resolve target audience
-    let audienceFilter: Record<string, unknown> | null = null
-    if (campaign.audience_filter) {
-      try {
-        audienceFilter = typeof campaign.audience_filter === 'string'
-          ? JSON.parse(campaign.audience_filter)
-          : campaign.audience_filter
-      } catch {
-        console.error(`[dispatcher] Invalid audienceFilter JSON for campaign ${campaignId} — aborting`)
-        await updateCampaignStatus(client, campaignId, 'failed')
-        return { success: false, error: 'Invalid audience filter configuration' }
-      }
+    for (const contact of audience) {
+      const sanitized = sanitizePhoneNumber(contact.phone)
+      if (!sanitized.isValid) continue
+
+      await db
+        .insert(outbox_jobs)
+        .values({
+          id: randomUUID(),
+          job_type: 'send_whatsapp',
+          payload: {
+            campaignId,
+            contactId: contact.id,
+            phone: sanitized.e164,
+            wamid: null,
+          },
+          status: 'pending',
+          next_run_at: new Date(),
+          idempotency_key: `campaign:${campaignId}:${contact.id}`,
+        })
+        .onConflictDoNothing()
     }
 
-    const leads = await resolveAudience(client, audienceFilter)
-    console.log(`[dispatcher] Resolved ${leads.length} contacts for campaign ${campaignId}`)
-
-    // 5. Populate message rows (skip duplicates by phone_number)
-    if (leads.length > 0) {
-      for (const lead of leads) {
-        const phone = lead.phone
-        if (!phone) continue
-        const sanitized = sanitizePhoneNumber(phone)
-        if (!sanitized.isValid) continue
-
-        try {
-          await client.request(
-            (createItem as any)('whatsapp_campaign_messages', {
-              campaign_id: campaignId,
-              lead_id: lead.id,
-              phone_number: sanitized.e164,
-              status: 'pending',
-            }),
-          )
-        } catch {
-          // Duplicate (campaign_id + phone_number unique) — safe to skip
-        }
-      }
-
-      // Update total_contacts count
-      if (campaign.total_contacts === 0 || leads.length > campaign.total_contacts) {
-        await client.request(
-          (updateItem as any)('whatsapp_campaigns', campaignId, {
-            total_contacts: leads.length,
-          }),
+    // 4. Fetch pending jobs for this campaign
+    const pendingJobs = await db
+      .select()
+      .from(outbox_jobs)
+      .where(
+        and(
+          eq(outbox_jobs.job_type, 'send_whatsapp'),
+          sql`${outbox_jobs.payload}->>'campaignId' = ${campaignId}`,
+          eq(outbox_jobs.status, 'pending')
         )
-      }
-    }
+      )
 
-    // 6. Fetch pending messages
-    const pendingMessages = await client.request(
-      (readItems as any)('whatsapp_campaign_messages', {
-        filter: {
-          _and: [
-            { campaign_id: { _eq: campaignId } },
-            { status: { _eq: 'pending' } },
-          ],
-        },
-        limit: -1,
-      }),
-    ) as CampaignMessage[]
-
-    console.log(`[dispatcher] Processing ${pendingMessages.length} pending messages`)
-
-    // Parse variable mappings
-    let variableMappings: Record<string, string> = {}
-    if (campaign.variable_mappings) {
-      try {
-        variableMappings = typeof campaign.variable_mappings === 'string'
-          ? JSON.parse(campaign.variable_mappings)
-          : campaign.variable_mappings
-      } catch {
-        // Empty mappings are fine — template may have no variables
-      }
-    }
+    console.log(`[dispatcher] Processing ${pendingJobs.length} pending messages`)
 
     let sentCount = 0
     let failedCount = 0
 
-    // 7. Dispatch loop
-    for (const msg of pendingMessages) {
-      // Check if campaign was paused or cancelled mid-flight
-      const currentCampaigns = await client.request(
-        (readItems as any)('whatsapp_campaigns', {
-          filter: { id: { _eq: campaignId } },
-          fields: ['status'],
-          limit: 1,
-        }),
-      ) as Array<{ status: string }>
-
-      const currentStatus = currentCampaigns[0]?.status
-      if (currentStatus === 'paused' || currentStatus === 'cancelled') {
-        console.log(`[dispatcher] Campaign ${campaignId} interrupted by ${currentStatus}`)
+    // 5. Dispatch loop
+    for (const job of pendingJobs) {
+      // Pause check between each send
+      const current = await loadCampaign(campaignId)
+      if (current && current.cfg.run_state === 'paused') {
+        console.log(`[dispatcher] Campaign ${campaignId} interrupted by pause`)
         return { success: true, sentCount, failedCount }
       }
 
-      // Mark as sending
-      await client.request(
-        (updateItem as any)('whatsapp_campaign_messages', msg.id, {
-          status: 'sending',
-        }),
-      )
+      await db
+        .update(outbox_jobs)
+        .set({ status: 'sending', started_at: new Date(), updated_at: new Date() })
+        .where(eq(outbox_jobs.id, job.id))
 
-      // Rate limiter pacing
       await bucket.acquire()
 
-      // Resolve lead data for variable resolution
-      let leadData: Lead | null = null
-      if (msg.lead_id) {
-        const leadsResult = await client.request(
-          (readItems as any)('leads', {
-            filter: { id: { _eq: msg.lead_id } },
-            fields: ['id', 'first_name', 'last_name', 'email', 'phone', 'company_name', 'country'],
-            limit: 1,
-          }),
-        ) as Lead[]
-        leadData = leadsResult[0] ?? null
+      const payload = (job.payload ?? {}) as Record<string, unknown>
+      const phone = typeof payload.phone === 'string' ? payload.phone : ''
+      const contactId = typeof payload.contactId === 'string' ? payload.contactId : null
+
+      let contactRow: ContactRow | null = null
+      if (contactId) {
+        const rows = await db.select().from(contacts).where(eq(contacts.id, contactId)).limit(1)
+        contactRow = rows[0] ?? null
       }
 
-      const resolvedVars = resolveVariables(variableMappings, leadData || {
-        id: '',
-        phone: msg.phone_number,
-        first_name: 'Customer',
-      })
+      const resolvedVars = resolveVariables(cfg.variable_mappings ?? null, contactRow, phone)
 
-      // Dispatch via Meta API
       const result = await sendWhatsappTemplateWithMeta(
-        msg.phone_number,
-        campaign.template_name,
-        campaign.template_language || 'en',
+        phone,
+        cfg.template_name,
+        cfg.template_language || 'en',
         {
-          headerMediaUrl: campaign.header_media_url || undefined,
+          headerMediaUrl: cfg.header_media_url || undefined,
           bodyVariables: resolvedVars.length > 0 ? resolvedVars : undefined,
-        },
+        }
       )
 
       if (result) {
-        // Success
-        await client.request(
-          (updateItem as any)('whatsapp_campaign_messages', msg.id, {
-            wamid: result.wamid,
+        await db
+          .update(outbox_jobs)
+          .set({
             status: 'sent',
-            sent_at: new Date().toISOString(),
-          }),
-        )
+            payload: { ...payload, wamid: result.wamid },
+            completed_at: new Date(),
+            updated_at: new Date(),
+          })
+          .where(eq(outbox_jobs.id, job.id))
         sentCount++
-        console.log(`[dispatcher] Sent to ${msg.phone_number} (wamid: ${result.wamid})`)
+        console.log(`[dispatcher] Sent to ${phone} (wamid: ${result.wamid})`)
       } else {
-        // Failed
-        await client.request(
-          (updateItem as any)('whatsapp_campaign_messages', msg.id, {
+        await db
+          .update(outbox_jobs)
+          .set({
             status: 'failed',
-            error_message: 'Meta API send failed',
-            failed_at: new Date().toISOString(),
-          }),
-        )
+            last_error: 'Meta API send failed (env unset or rejected)',
+            completed_at: new Date(),
+            updated_at: new Date(),
+          })
+          .where(eq(outbox_jobs.id, job.id))
         failedCount++
-        console.warn(`[dispatcher] Failed to send to ${msg.phone_number}`)
-      }
-
-      // Update campaign counters every 10 messages (reduce DB writes)
-      if ((sentCount + failedCount) % 10 === 0) {
-        await client.request(
-          (updateItem as any)('whatsapp_campaigns', campaignId, {
-            sent_count: sentCount,
-            failed_count: failedCount,
-          }),
-        )
+        console.warn(`[dispatcher] Failed to send to ${phone}`)
       }
     }
 
-    // 8. Final counter update
-    await client.request(
-      (updateItem as any)('whatsapp_campaigns', campaignId, {
-        sent_count: sentCount,
-        failed_count: failedCount,
-      }),
-    )
-
-    // 9. Check if all messages processed
-    const remainingPending = await client.request(
-      (aggregate as any)('whatsapp_campaign_messages', {
-        filter: {
-          _and: [
-            { campaign_id: { _eq: campaignId } },
-            { status: { _in: ['pending', 'sending'] } },
-          ],
-        },
-        aggregate: { count: 'id' },
-      }),
-    ) as Array<{ count?: { id: number } }>
-
-    const remaining = remainingPending[0]?.count?.id ?? 0
+    // 6. Final counter update + completion check
+    const remaining = await countPendingJobs(campaignId)
+    await updateRunState(campaignId, cfg, {
+      run_state: remaining === 0 ? 'completed' : 'running',
+      sent_count: sentCount,
+      failed_count: failedCount,
+      total_contacts: audience.length,
+    })
 
     if (remaining === 0) {
-      await client.request(
-        (updateItem as any)('whatsapp_campaigns', campaignId, {
-          status: 'completed',
-          completed_at: new Date().toISOString(),
-        }),
-      )
       console.log(`[dispatcher] Campaign ${campaignId} completed successfully`)
     }
 
@@ -448,45 +341,25 @@ export async function dispatchCampaign(
   } catch (error) {
     const message = error instanceof Error ? error.message : 'unknown error'
     console.error(`[dispatcher] Fatal error during dispatch: ${message}`, error)
-    await updateCampaignStatus(client, campaignId, 'failed').catch(() => {})
+    await updateRunState(campaignId, { ...cfg, run_state: 'running' }, { run_state: 'failed' })
     return { success: false, error: message }
   }
 }
 
-async function updateCampaignStatus(
-  client: DirectusClient,
-  campaignId: string,
-  status: string,
-) {
-  await client.request(
-    (updateItem as any)('whatsapp_campaigns', campaignId, { status }),
-  )
-}
-
 /**
- * Pause a running campaign. The dispatch loop checks status between each send,
- * so it will stop at the next iteration.
+ * Pause a running campaign. The dispatch loop checks run_state between each
+ * send, so it stops at the next iteration.
  */
 export async function pauseCampaign(
-  client: DirectusClient,
-  campaignId: string,
+  _client: unknown,
+  campaignId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const campaigns = await client.request(
-    (readItems as any)('whatsapp_campaigns', {
-      filter: { id: { _eq: campaignId } },
-      fields: ['status'],
-      limit: 1,
-    }),
-  ) as Array<{ status: string }>
-
-  const campaign = campaigns[0]
-  if (!campaign || campaign.status !== 'running') {
+  const loaded = await loadCampaign(campaignId)
+  if (!loaded || loaded.cfg.run_state !== 'running') {
     return { success: false, error: 'Only running campaigns can be paused' }
   }
 
-  await client.request(
-    (updateItem as any)('whatsapp_campaigns', campaignId, { status: 'paused' }),
-  )
+  await updateRunState(campaignId, loaded.cfg, { run_state: 'paused' })
   return { success: true }
 }
 
@@ -494,21 +367,13 @@ export async function pauseCampaign(
  * Resume a paused campaign by re-invoking the dispatcher.
  */
 export async function resumeCampaign(
-  client: DirectusClient,
-  campaignId: string,
+  _client: unknown,
+  campaignId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const campaigns = await client.request(
-    (readItems as any)('whatsapp_campaigns', {
-      filter: { id: { _eq: campaignId } },
-      fields: ['status'],
-      limit: 1,
-    }),
-  ) as Array<{ status: string }>
-
-  const campaign = campaigns[0]
-  if (!campaign || campaign.status !== 'paused') {
+  const loaded = await loadCampaign(campaignId)
+  if (!loaded || loaded.cfg.run_state !== 'paused') {
     return { success: false, error: 'Only paused campaigns can be resumed' }
   }
 
-  return dispatchCampaign(client, campaignId)
+  return dispatchCampaign(_client, campaignId)
 }

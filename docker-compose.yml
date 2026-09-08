@@ -110,7 +110,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: ['node', 'worker.js']
+    command: ['node', 'worker.mjs']
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-gccplatform}:${POSTGRES_PASSWORD:-gccplatform_prod}@postgres:5432/${POSTGRES_DB:-gccplatform}
       JWT_SECRET: ${JWT_SECRET}

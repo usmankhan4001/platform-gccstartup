@@ -1,121 +1,84 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, parseSearch, parseFilters, addCorsHeaders } from '@/lib/api-auth'
-import { dispatchWebhook, getWebhookPayload } from '@/lib/webhooks'
-
-// Webhook subscription registry
-// TODO: Replace with actual database queries
-const stubWebhooks = [
-  {
-    id: 'wh_1',
-    url: 'https://example.com/webhooks/gcc',
-    events: ['contact.created', 'contact.updated', 'deal.won'],
-    secret: 'whsec_abc123def456',
-    status: 'active',
-    description: 'Production webhook for CRM events',
-    createdAt: '2026-09-01T10:00:00Z',
-    updatedAt: '2026-09-01T10:00:00Z',
-  },
-  {
-    id: 'wh_2',
-    url: 'https://staging.example.com/webhooks',
-    events: ['lead.captured', 'ticket.created'],
-    secret: 'whsec_xyz789uvw012',
-    status: 'active',
-    description: 'Staging webhook for lead events',
-    createdAt: '2026-09-05T14:30:00Z',
-    updatedAt: '2026-09-05T14:30:00Z',
-  },
-]
-
-const stubDeliveries: any[] = []
+import { randomBytes } from 'node:crypto'
+import { and, desc, eq, ilike, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { webhooks } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId } from '../_lib'
 
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    const { page, limit, offset } = parsePagination(request)
-    const search = parseSearch(request)
-    const filters = parseFilters(request)
-
-    let webhooks = [...stubWebhooks]
-
-    if (search) {
-      const q = search.toLowerCase()
-      webhooks = webhooks.filter(w =>
-        w.url.toLowerCase().includes(q) ||
-        w.description.toLowerCase().includes(q) ||
-        w.events.some(e => e.includes(q))
-      )
+  if (!hasPermission(key, 'webhooks:read')) return errorJson('Missing permission: webhooks:read', 403)
+  return handle(async () => {
+    const { page, limit, offset } = paginationFrom(request)
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const filters: Array<any> = []
+    if (search) filters.push(ilike(webhooks.url, `%${search}%`))
+    for (const [rawKey, rawValue] of searchParams.entries()) {
+      if (rawKey === 'filter[isActive]' && ['true', 'false'].includes(rawValue)) {
+        filters.push(eq(webhooks.is_active, rawValue === 'true'))
+      }
     }
+    const where = filters.length ? and(...filters) : undefined
 
-    for (const [filterKey, filterValue] of Object.entries(filters)) {
-      webhooks = webhooks.filter(w => (w as any)[filterKey] === filterValue)
-    }
+    const [rows, totals] = await Promise.all([
+      db.select().from(webhooks).where(where).orderBy(desc(webhooks.created_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(webhooks).where(where),
+    ])
 
-    const total = webhooks.length
-    const paginated = webhooks.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const total = totals[0]?.count ?? 0
+    return json(rows.map((row) => ({
+      id: row.id,
+      url: row.url,
+      events: row.events ?? [],
+      status: row.is_active ? 'active' : 'inactive',
+      lastTriggeredAt: row.last_triggered_at,
+      failureCount: row.failure_count,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })), 200, metaFor(page, limit, total))
+  })
 })
 
 export const POST = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
+  if (!hasPermission(key, 'webhooks:write')) return errorJson('Missing permission: webhooks:write', 403)
+  return handle(async () => {
     const body = await request.json()
-    const { url, events, secret, description = '' } = body
+    const { url, events, secret, isActive = true } = body ?? {}
 
-    if (!url?.trim()) {
-      const response = NextResponse.json(
-        { error: 'url is required' },
-        { status: 400 }
-      )
-      return addCorsHeaders(response)
-    }
-
-    if (!events || !Array.isArray(events) || events.length === 0) {
-      const response = NextResponse.json(
-        { error: 'events must be a non-empty array' },
-        { status: 400 }
-      )
-      return addCorsHeaders(response)
-    }
-
-    // Validate URL format
+    if (!url?.trim()) return errorJson('url is required', 400)
+    if (!events || !Array.isArray(events) || events.length === 0) return errorJson('events must be a non-empty array', 400)
     try {
-      new URL(url)
+      new URL(String(url))
     } catch {
-      const response = NextResponse.json(
-        { error: 'Invalid URL format' },
-        { status: 400 }
-      )
-      return addCorsHeaders(response)
+      return errorJson('Invalid URL format', 400)
     }
 
-    const webhook = {
-      id: 'wh_' + Date.now(),
-      url,
-      events,
-      secret: secret || 'whsec_' + require('crypto').randomBytes(24).toString('hex'),
-      status: 'active',
-      description,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    // The signing secret is generated server-side and shown once; it is never
+    // returned again by any listing endpoint.
+    const created = await db
+      .insert(webhooks)
+      .values({
+        id: newId(),
+        url: String(url).trim(),
+        events: events.map(String).slice(0, 100),
+        secret: secret ? String(secret).slice(0, 255) : `whsec_${randomBytes(24).toString('hex')}`,
+        is_active: Boolean(isActive),
+        created_by: key.id,
+      })
+      .returning()
 
-    // TODO: Insert into database
-    stubWebhooks.push(webhook)
-
-    const response = NextResponse.json({ data: webhook }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const row = created[0]
+    return json({
+      id: row.id,
+      url: row.url,
+      events: row.events,
+      status: row.is_active ? 'active' : 'inactive',
+      // Returned once, on create only, so the consumer can store it.
+      secret: row.secret,
+      createdAt: row.created_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {

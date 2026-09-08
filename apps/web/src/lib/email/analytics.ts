@@ -238,3 +238,70 @@ export function aggregateLeadEvents(rows: EmailEventRow[], leadId: string): Lead
     entities,
   }
 }
+
+/* --------------------------------------------------------- drizzle load ----
+   The aggregation above is pure. These helpers are the Drizzle-backed readers
+   that feed it: one campaign-scoped loader and one platform-wide loader, both
+   tolerant of failure (they degrade to an empty stream with a logged error, per
+   the house rule that a failed read must never blank a page). */
+
+import { db } from '@/lib/db'
+import { email_sends, events } from '@gccstartup/db'
+import { desc, eq } from 'drizzle-orm'
+
+/**
+ * Loads the engagement stream for one campaign (or the whole platform) from the
+ * database: per-send terminal states from `email_sends` plus fine-grained
+ * engagement events (`email.opened`, `email.clicked`, ...) from `events`.
+ */
+export async function loadEngagementRows(options: { campaignId?: string; limit?: number } = {}): Promise<EmailEventRow[]> {
+  const limit = Math.min(Math.max(Math.trunc(options.limit ?? 5_000), 1), 20_000)
+  const rows: EmailEventRow[] = []
+
+  try {
+    const sendRows = options.campaignId
+      ? await db.select().from(email_sends).where(eq(email_sends.campaign_id, options.campaignId)).limit(limit)
+      : await db.select().from(email_sends).limit(limit)
+
+    for (const send of sendRows) {
+      const eventType =
+        send.status === 'failed' || send.status === 'queued'
+          ? 'sent'
+          : send.status // 'sent' | 'delivered' | 'bounced' | 'complained' (complained ~ unsubscribed bucket)
+      rows.push({
+        id: send.id,
+        event_type: eventType === 'complained' ? 'unsubscribed' : eventType,
+        lead_id: send.contact_id,
+        campaign: send.campaign_id,
+        occurred_at: (send.delivered_at ?? send.sent_at ?? send.created_at)?.toISOString() ?? null,
+        email: send.to_email,
+        metadata: null,
+      })
+    }
+
+    const eventRows = await db
+      .select()
+      .from(events)
+      .orderBy(desc(events.created_at))
+      .limit(limit)
+    for (const event of eventRows) {
+      if (!event.event_type.startsWith('email.')) continue
+      if (event.event_type === 'email.sent') continue // already covered by the send rows
+      const payload = event.payload ?? {}
+      rows.push({
+        id: event.id,
+        event_type: event.event_type.replace('email.', ''),
+        lead_id: typeof payload.contact_id === 'string' ? payload.contact_id : null,
+        campaign: null,
+        occurred_at: event.created_at.toISOString(),
+        email: typeof payload.email === 'string' ? payload.email : null,
+        metadata: payload,
+      })
+    }
+  } catch (error) {
+    console.error('[email/analytics] failed to load engagement rows', error)
+    return rows
+  }
+
+  return rows
+}

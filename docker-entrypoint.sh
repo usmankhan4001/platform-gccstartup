@@ -4,9 +4,16 @@ set -e
 echo "=== GCC Startup Platform ==="
 echo "Running database migrations..."
 
-# Run Drizzle migrations
 cd /app
-npx drizzle-kit migrate --config=packages/db/drizzle.config.ts 2>/dev/null || echo "No migrations to run or database not ready"
+
+# Migrations are additive and idempotent, so this is safe on every boot. A
+# failure is logged loudly but does not stop the app from starting — a site
+# that serves stale content beats a container that crash-loops on boot.
+if node migrate.mjs; then
+  echo "Migrations applied"
+else
+  echo "WARNING: migrations did not apply — check DATABASE_URL and the logs above" >&2
+fi
 
 echo "Starting application..."
-exec node apps/web/server.js
+exec "$@"

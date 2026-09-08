@@ -1,48 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
-
-const stubDocuments = [
-  { id: '1', name: 'Pitch Deck.pdf', type: 'pdf', size: 2048000, mimeType: 'application/pdf', uploadedBy: 'user-1', contactId: '1', dealId: '1', url: 'https://storage.gcc.com/docs/1/pitch-deck.pdf', createdAt: new Date().toISOString() },
-  { id: '2', name: 'Contract.docx', type: 'docx', size: 512000, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uploadedBy: 'user-2', contactId: '2', dealId: '2', url: 'https://storage.gcc.com/docs/2/contract.docx', createdAt: new Date().toISOString() },
-]
-
-type RouteContext = { params: Promise<{ id: string }> }
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { media } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../_lib'
 
 export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'documents:read')) return errorJson('Missing permission: documents:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const document = stubDocuments.find(d => d.id === id)
-
-    if (!document) {
-      const response = NextResponse.json({ error: 'Document not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: document })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const rows = await db.select().from(media).where(eq(media.id, id)).limit(1)
+    if (!rows[0]) return errorJson('Document not found', 404)
+    const row = rows[0]
+    return json({
+      id: row.id,
+      name: row.file_name,
+      storageKey: row.r2_key,
+      mimeType: row.mime_type,
+      size: row.file_size_bytes,
+      width: row.width,
+      height: row.height,
+      altText: row.alt_text,
+      folderId: row.folder_id,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+    })
+  })
 })
 
 export const DELETE = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'documents:write')) return errorJson('Missing permission: documents:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const document = stubDocuments.find(d => d.id === id)
-
-    if (!document) {
-      const response = NextResponse.json({ error: 'Document not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    // TODO: Delete from storage and database
-    const response = NextResponse.json({ data: { deleted: true, id } })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    // Deletes the record only. The R2 object is removed by the storage GC job;
+    // removing blobs inline would make an accidental DELETE unrecoverable.
+    const deleted = await db.delete(media).where(eq(media.id, id)).returning({ id: media.id })
+    if (!deleted.length) return errorJson('Document not found', 404)
+    return json({ deleted: true, id })
+  })
 })
 
 export async function OPTIONS() {

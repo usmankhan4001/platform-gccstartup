@@ -1,77 +1,109 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, parseSearch, parseFilters, addCorsHeaders } from '@/lib/api-auth'
+import { and, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { contacts } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId } from '../_lib'
 
-const stubLeads = [
-  { id: '1', firstName: 'Ahmed', lastName: 'Ali', email: 'ahmed@startup.com', phone: '+971501111111', source: 'website', stage: 'new', score: 85, assignedTo: 'user-1', createdAt: new Date().toISOString() },
-  { id: '2', firstName: 'Sara', lastName: 'Khan', email: 'sara@corp.com', phone: '+971502222222', source: 'referral', stage: 'contacted', score: 72, assignedTo: 'user-2', createdAt: new Date().toISOString() },
-]
+/**
+ * Leads are contacts at the `lead` lifecycle stage — there is no separate leads
+ * table. The API surface keeps the lead vocabulary (stage -> custom_fields.lead_stage,
+ * score -> custom_fields.lead_score) so consumers never see the mapping.
+ */
+const LEAD_WHERE = and(eq(contacts.lifecycle_stage, 'lead'), isNull(contacts.deleted_at))
 
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    const { page, limit, offset } = parsePagination(request)
-    const search = parseSearch(request)
-    const filters = parseFilters(request)
+  if (!hasPermission(key, 'contacts:read')) return errorJson('Missing permission: contacts:read', 403)
+  return handle(async () => {
+    const { page, limit, offset } = paginationFrom(request)
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const filters: Array<any> = [LEAD_WHERE]
 
-    let leads = [...stubLeads]
-
+    for (const [rawKey, rawValue] of searchParams.entries()) {
+      if (!rawKey.startsWith('filter[') || !rawKey.endsWith(']')) continue
+      const filterKey = rawKey.slice(7, -1)
+      if (filterKey === 'source' && rawValue) filters.push(eq(contacts.source, rawValue))
+      else if (filterKey === 'ownerId' && rawValue) filters.push(eq(contacts.owner_id, rawValue))
+    }
     if (search) {
-      const q = search.toLowerCase()
-      leads = leads.filter(l =>
-        l.firstName.toLowerCase().includes(q) ||
-        l.lastName.toLowerCase().includes(q) ||
-        l.email.toLowerCase().includes(q)
-      )
+      const term = `%${search}%`
+      filters.push(or(ilike(contacts.first_name, term), ilike(contacts.last_name, term), ilike(contacts.email, term)) as never)
     }
+    const where = and(...filters)
 
-    for (const [filterKey, filterValue] of Object.entries(filters)) {
-      leads = leads.filter(l => (l as any)[filterKey] === filterValue)
-    }
+    const [rows, totals] = await Promise.all([
+      db.select().from(contacts).where(where).orderBy(desc(contacts.created_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(contacts).where(where),
+    ])
 
-    const total = leads.length
-    const paginated = leads.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const total = totals[0]?.count ?? 0
+    return json(
+      rows.map((row) => ({
+        id: row.id,
+        firstName: row.first_name,
+        lastName: row.last_name,
+        email: row.email,
+        phone: row.phone,
+        company: row.company,
+        source: row.source,
+        stage: (row.custom_fields as Record<string, unknown> | null)?.lead_stage ?? 'new',
+        score: (row.custom_fields as Record<string, unknown> | null)?.lead_score ?? 0,
+        ownerId: row.owner_id,
+        emailConsent: row.email_consent,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+      })),
+      200,
+      metaFor(page, limit, total),
+    )
+  })
 })
 
 export const POST = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
+  if (!hasPermission(key, 'contacts:write')) return errorJson('Missing permission: contacts:write', 403)
+  return handle(async () => {
     const body = await request.json()
-    const { firstName, lastName, email, phone, source = 'api', stage = 'new', score = 0, assignedTo, customAttributes = {} } = body
+    const { firstName, lastName, email, phone, company, source = 'api', stage = 'new', score = 0, ownerId, customAttributes } = body ?? {}
 
-    if (!email?.trim() && !phone?.trim()) {
-      const response = NextResponse.json({ error: 'Email or phone is required' }, { status: 400 })
-      return addCorsHeaders(response)
-    }
+    if (!email?.trim() && !phone?.trim()) return errorJson('Email or phone is required', 400)
 
-    const lead = {
-      id: 'lead-' + Date.now(),
-      firstName,
-      lastName,
-      email,
-      phone,
-      source,
+    const created = await db
+      .insert(contacts)
+      .values({
+        id: newId(),
+        email: email ? String(email).trim().toLowerCase() : null,
+        phone: phone ? String(phone).trim() : null,
+        first_name: firstName ? String(firstName).trim() : null,
+        last_name: lastName ? String(lastName).trim() : null,
+        display_name: [firstName, lastName].filter(Boolean).join(' ').trim() || null,
+        company: company ? String(company) : null,
+        lifecycle_stage: 'lead',
+        source: String(source).slice(0, 100),
+        owner_id: ownerId ? String(ownerId) : null,
+        custom_fields: {
+          ...(customAttributes && typeof customAttributes === 'object' ? customAttributes : {}),
+          lead_stage: String(stage).slice(0, 50),
+          lead_score: Number.isFinite(Number(score)) ? Number(score) : 0,
+        },
+      })
+      .returning()
+
+    const row = created[0]
+    return json({
+      id: row.id,
+      firstName: row.first_name,
+      lastName: row.last_name,
+      email: row.email,
+      phone: row.phone,
+      source: row.source,
       stage,
       score,
-      assignedTo,
-      customAttributes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-
-    const response = NextResponse.json({ data: lead }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+      ownerId: row.owner_id,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {

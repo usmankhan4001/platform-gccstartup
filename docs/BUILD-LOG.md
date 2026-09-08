@@ -913,3 +913,71 @@ Polish ensures the codebase compiles and runs correctly. File casing fixes elimi
 5. **Migrate data** from gccstartup-cms (contacts, content, settings)
 6. **Test end-to-end** (lead capture → email → WhatsApp → deal)
 7. **Launch** 🚀
+
+---
+
+### 2026-09-08 — PHASE 6 — End-to-end functional platform
+**Agent:** Integration Agent (+ 4 parallel implementation agents)
+
+**What was done:** Every TODO/stub in the API surface, the email/WhatsApp/CRM
+libraries and the background worker was replaced with a real Drizzle
+implementation, and the platform was made to actually run and deploy.
+
+**Foundations (new):**
+- `apps/web/src/lib/auth/session.ts` — real session auth: JWT cookie validated
+  against the `sessions` + `users` rows (so logout/deactivation revokes tokens)
+- `apps/web/src/app/api/auth/{login,logout,me}/route.ts` + `apps/web/src/app/login/page.tsx`
+  — the platform previously had **no** login route or page at all
+- `apps/web/src/lib/api-auth.ts` — API keys now resolve against the real
+  `api_keys` table (SHA-256 of the `gcc_…` token), not a hardcoded dev key
+- `apps/web/src/lib/db.ts` — fixed: it re-exported the `getDb` *function* as
+  `db`; every caller expected an instance
+- `packages/db/migrations/` — first migration generated (the schema existed but
+  had never been migrated)
+- `packages/db/scripts/seed.ts` — idempotent seed: roles, super_admin user,
+  default pipeline + 7 stages, one API key (raw key printed once)
+- `scripts/migrate.ts` → bundled `migrate.mjs` — migrations now run on boot
+
+**Implemented by the parallel agents:**
+- CRM: contacts (+import), groups, segments, leads, tasks, activities, users,
+  WhatsApp thread, campaigns (+dispatch, audience), automations, analytics
+  (+CSV export), notifications, tickets
+- WhatsApp: bots, knowledge bases, templates (+sync/test), inbound webhook
+  (verify + HMAC + delivery receipts), full chat/inbox surface, and every
+  `lib/whatsapp/*` module
+- Email + Platform API: `lib/email/*` (durable outbox, consent + suppression
+  gates, flows, segments, analytics), `/api/email/*`, `/api/flows/*`, and the
+  whole `/api/v2/*` Platform API (contacts, leads, deals, conversations,
+  campaigns, templates, flows, analytics, webhooks, documents)
+- Worker: all six tick stages now run for real (reap → drain email + WhatsApp →
+  dispatch due campaigns → advance flows → compliance → webhook delivery)
+
+**Deploy fixes (the image previously could not build or run):**
+- `.dockerignore` only ignored the top-level `node_modules`, so the host's
+  Windows-symlinked `apps/web/node_modules` was copied over the Linux install
+  and `next build` failed with `Cannot find module next`. Now `**/node_modules`.
+- Dockerfile: builder now inherits the deps stage (copying pnpm's symlink tree
+  between stages broke it); worker is bundled with esbuild to `worker.mjs`
+  (the compose `worker` service ran `node worker.js`, which nothing produced)
+- Migrations never ran in production — the image's `CMD` bypassed
+  `docker-entrypoint.sh`. Now an `ENTRYPOINT` runs `migrate.mjs` first.
+- `packages/shared` used `.js` ESM import specifiers that webpack cannot
+  resolve from `.ts` sources — stripped to extensionless (tsconfig is
+  `moduleResolution: bundler`)
+- `/login` failed prerender (`useSearchParams` without Suspense) — wrapped
+
+**Verified:**
+- `pnpm typecheck` clean (all 3 packages), `pnpm test` 17/17 passing
+- Docker image builds; full compose stack (postgres + redis + app + worker) runs
+- Live smoke test: login → session → contacts CRUD → analytics → v2 API with a
+  real API key (bad key = 401); campaign → `email_sends` → outbox → drained
+- Worker tick completes all six stages in-container
+
+**Known limitations (honest):**
+- Email transport is the `senderAdapter` pass-through stub — with SES/Sender env
+  unset, sends are recorded as `sent` without going on the wire
+- No `groups`/`segments`/`notifications`/`companies` tables exist; those routes
+  are backed by `contacts.tags`, `events`, `outbox_jobs` (documented inline)
+- Bots / knowledge bases / WhatsApp campaigns are stored as `flows` rows with
+  `trigger_config.entityKind` (documented inline)
+- Bot replies and AI copilot are deterministic (no AI provider wired)

@@ -1,3 +1,3 @@
-export { on, emit, off, clearAllListeners } from './bus.js'
-export type { EventHandler } from './bus.js'
-export type { EventMap } from './types.js'
+export { on, emit, off, clearAllListeners } from './bus'
+export type { EventHandler } from './bus'
+export type { EventMap } from './types'

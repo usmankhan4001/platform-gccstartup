@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createHash } from 'crypto'
+import { eq, and } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { api_keys } from '@gccstartup/db'
 
 export type ApiKeyPayload = {
   id: string
@@ -17,18 +20,35 @@ export async function authenticateApiKey(request: NextRequest): Promise<ApiKeyPa
 
   const keyHash = createHash('sha256').update(token).digest('hex')
 
-  // TODO: Replace with actual database lookup
-  // SELECT id, name, permissions, rate_limit FROM api_keys WHERE key_hash = $1 AND status = 'ACTIVE'
-  if (token.startsWith('gcc_')) {
-    return {
-      id: 'dev-key',
-      name: 'Development API Key',
-      permissions: ['*'],
-      rateLimit: 1000,
-    }
-  }
+  const rows = await db
+    .select({
+      id: api_keys.id,
+      name: api_keys.name,
+      permissions: api_keys.permissions,
+      rate_limit: api_keys.rate_limit,
+      is_active: api_keys.is_active,
+      expires_at: api_keys.expires_at,
+    })
+    .from(api_keys)
+    .where(and(eq(api_keys.key_hash, keyHash), eq(api_keys.is_active, true)))
+    .limit(1)
 
-  return null
+  const key = rows[0]
+  if (!key) return null
+  if (key.expires_at && key.expires_at < new Date()) return null
+
+  // Touch last_used_at without blocking the request on failure.
+  db.update(api_keys)
+    .set({ last_used_at: new Date() })
+    .where(eq(api_keys.id, key.id))
+    .catch(() => {})
+
+  return {
+    id: key.id,
+    name: key.name,
+    permissions: key.permissions || [],
+    rateLimit: key.rate_limit,
+  }
 }
 
 export function requireApiKey(handler: Function) {

@@ -11,7 +11,7 @@ export {
   canAccess,
   getRoleLevel,
   type Role,
-} from './auth/index.js'
+} from './auth/index'
 
 // ─── Email ───────────────────────────────────────────────────────────────────
 export {
@@ -31,10 +31,10 @@ export {
   type EmailSender,
   senderAdapter,
   createSESProvider,
-} from './email/index.js'
+} from './email/index'
 
 // ─── WhatsApp ────────────────────────────────────────────────────────────────
-export { sendText, sendTemplate, sendTemplateWithMedia } from './whatsapp/index.js'
+export { sendText, sendTemplate, sendTemplateWithMedia } from './whatsapp/index'
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 export {
@@ -42,7 +42,7 @@ export {
   getPresignedDownloadUrl,
   deleteFile,
   listFiles,
-} from './storage/index.js'
+} from './storage/index'
 
 // ─── Queue ───────────────────────────────────────────────────────────────────
 export {
@@ -57,7 +57,7 @@ export {
   type Job,
   type OutboxRow,
   type JobDB,
-} from './queue/index.js'
+} from './queue/index'
 
 // ─── Events ──────────────────────────────────────────────────────────────────
 export {
@@ -67,7 +67,7 @@ export {
   clearAllListeners,
   type EventHandler,
   type EventMap,
-} from './events/index.js'
+} from './events/index'
 
 // ─── Utils ───────────────────────────────────────────────────────────────────
 export {
@@ -89,4 +89,4 @@ export {
   validate,
   type PaginationInput,
   type DateRangeInput,
-} from './utils/index.js'
+} from './utils/index'

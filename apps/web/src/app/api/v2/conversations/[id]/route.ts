@@ -1,68 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { conversations } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../_lib'
 
-const stubConversations = [
-  { id: '1', contactId: '1', channel: 'whatsapp', status: 'active', lastMessageAt: new Date().toISOString(), assignedTo: 'user-1', createdAt: new Date().toISOString() },
-  { id: '2', contactId: '2', channel: 'email', status: 'active', lastMessageAt: new Date().toISOString(), assignedTo: 'user-2', createdAt: new Date().toISOString() },
-]
-
-type RouteContext = { params: Promise<{ id: string }> }
+function serialize(row: typeof conversations.$inferSelect) {
+  return {
+    id: row.id,
+    contactId: row.contact_id,
+    channel: row.channel,
+    state: row.state,
+    unreadCount: row.unread_count,
+    assignedTo: row.assigned_to,
+    lastMessageAt: row.last_message_at,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
 
 export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'conversations:read')) return errorJson('Missing permission: conversations:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const conversation = stubConversations.find(c => c.id === id)
-
-    if (!conversation) {
-      const response = NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: conversation })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const rows = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1)
+    if (!rows[0]) return errorJson('Conversation not found', 404)
+    return json(serialize(rows[0]))
+  })
 })
 
 export const PATCH = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'conversations:write')) return errorJson('Missing permission: conversations:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const conversation = stubConversations.find(c => c.id === id)
-
-    if (!conversation) {
-      const response = NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
     const body = await request.json()
-    const updated = { ...conversation, ...body, id, updatedAt: new Date().toISOString() }
 
-    const response = NextResponse.json({ data: updated })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const existing = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1)
+    if (!existing[0]) return errorJson('Conversation not found', 404)
+
+    const updates: Record<string, unknown> = { updated_at: new Date() }
+    if (['open', 'closed'].includes(body.state)) {
+      updates.state = body.state
+      updates.closed_at = body.state === 'closed' ? new Date() : null
+    }
+    if (body.assignedTo !== undefined) updates.assigned_to = body.assignedTo ? String(body.assignedTo) : null
+    if (Number.isInteger(body.unreadCount)) updates.unread_count = body.unreadCount
+    if (body.metadata && typeof body.metadata === 'object') updates.metadata = body.metadata
+
+    const updated = await db.update(conversations).set(updates).where(eq(conversations.id, id)).returning()
+    return json(serialize(updated[0]))
+  })
 })
 
 export const DELETE = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+  if (!hasPermission(key, 'conversations:write')) return errorJson('Missing permission: conversations:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const conversation = stubConversations.find(c => c.id === id)
-
-    if (!conversation) {
-      const response = NextResponse.json({ error: 'Conversation not found' }, { status: 404 })
-      return addCorsHeaders(response)
-    }
-
-    const response = NextResponse.json({ data: { deleted: true, id } })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const deleted = await db.delete(conversations).where(eq(conversations.id, id)).returning({ id: conversations.id })
+    if (!deleted.length) return errorJson('Conversation not found', 404)
+    return json({ deleted: true, id })
+  })
 })
 
 export async function OPTIONS() {

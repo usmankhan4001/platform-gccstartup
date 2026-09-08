@@ -1,5 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
-import { logger } from '../utils/logger.js'
+import { logger } from '../utils/logger'
 
 export interface SessionPayload extends JWTPayload {
   userId: string

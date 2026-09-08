@@ -4,8 +4,8 @@ import {
   type SESv2ClientConfig,
   type SendEmailCommandInput,
 } from '@aws-sdk/client-sesv2'
-import { logger } from '../utils/logger.js'
-import type { EmailProvider, EmailSendParams, EmailBulkSendParams, EmailSendResult } from './provider.js'
+import { logger } from '../utils/logger'
+import type { EmailProvider, EmailSendParams, EmailBulkSendParams, EmailSendResult } from './provider'
 
 function getSESConfig(): SESv2ClientConfig | null {
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID

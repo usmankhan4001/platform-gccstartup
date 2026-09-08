@@ -1,7 +1,19 @@
-// Background worker for the GCC Startup Platform
-// Processes: email outbox, WhatsApp campaigns, flow advancement, compliance reminders
+// Background worker for the GCC Startup Platform.
+// Runs as its own container (docker-compose `worker` service) and processes:
+//   - the durable outbox (email + WhatsApp + webhook deliveries)
+//   - scheduled campaign dispatch (email and WhatsApp)
+//   - flow enrollment + advancement
+//   - compliance reminders
+//
+// Every stage delegates to the lib implementations so the API routes and the
+// worker share one code path. A stage failure is logged and never kills the loop.
 
 import { setInterval } from 'timers/promises'
+import { reapStaleJobs, drainOutbox, dispatchDueCampaigns } from '../lib/email/send'
+import { enrollLeadsForActiveFlows, advanceDueEnrollments } from '../lib/email/flows'
+import { evaluateUpcomingRenewals } from '../lib/crm/automation'
+import { dispatchDueWhatsappCampaigns, drainWhatsappJobs } from './dispatcher'
+import { processOutboundWebhooks } from './outbound-webhooks'
 
 const TICK_INTERVAL_MS = 60_000 // Run every 60 seconds
 const BUDGET_MS = 45_000 // 45 seconds per tick (leave buffer)
@@ -11,11 +23,12 @@ async function tick() {
   console.log(`[worker] Tick started at ${new Date().toISOString()}`)
 
   const stages = [
-    { name: 'reap', fn: reapStaleJobs },
-    { name: 'drain', fn: drainOutbox },
-    { name: 'campaigns', fn: dispatchDueCampaigns },
+    { name: 'reap', fn: () => reapStaleJobs(null) },
+    { name: 'drain', fn: drainAll },
+    { name: 'campaigns', fn: dispatchCampaigns },
     { name: 'flows', fn: advanceFlows },
     { name: 'compliance', fn: checkCompliance },
+    { name: 'webhooks', fn: () => processOutboundWebhooks() },
   ]
 
   for (const stage of stages) {
@@ -34,29 +47,28 @@ async function tick() {
   console.log(`[worker] Tick completed in ${Date.now() - start}ms`)
 }
 
-async function reapStaleJobs() {
-  // TODO: Implement with Drizzle
-  // Reap jobs stuck in 'processing' state for more than 15 minutes
+// Email jobs (send_email / flow_email / log_event) are drained by the email
+// lib; WhatsApp jobs (send_whatsapp / campaign_dispatch) by the dispatcher.
+async function drainAll() {
+  const email = await drainOutbox(null)
+  const whatsapp = await drainWhatsappJobs()
+  console.log(
+    `[worker] drain: email ${email.succeeded}/${email.selected} ok, whatsapp ${whatsapp.succeeded}/${whatsapp.selected} ok`,
+  )
 }
 
-async function drainOutbox() {
-  // TODO: Implement with Drizzle
-  // Process pending outbox jobs (email, WhatsApp, webhooks)
-}
-
-async function dispatchDueCampaigns() {
-  // TODO: Implement with Drizzle
-  // Dispatch scheduled email and WhatsApp campaigns
+async function dispatchCampaigns() {
+  await dispatchDueCampaigns(null)
+  await dispatchDueWhatsappCampaigns()
 }
 
 async function advanceFlows() {
-  // TODO: Implement with Drizzle
-  // Advance due flow enrollments to next step
+  await enrollLeadsForActiveFlows(null)
+  await advanceDueEnrollments(null)
 }
 
 async function checkCompliance() {
-  // TODO: Implement with Drizzle
-  // Check for approaching compliance deadlines
+  await evaluateUpcomingRenewals()
 }
 
 // Start worker loop

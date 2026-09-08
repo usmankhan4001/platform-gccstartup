@@ -10,4 +10,4 @@ export {
   type Job,
   type OutboxRow,
   type JobDB,
-} from './outbox.js'
+} from './outbox'

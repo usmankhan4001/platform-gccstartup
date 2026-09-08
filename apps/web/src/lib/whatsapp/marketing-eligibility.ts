@@ -1,8 +1,21 @@
-// TODO: Replace Prisma imports with Drizzle queries
-// import { prisma } from '@/lib/prisma';
+// Marketing-message eligibility gate. All checks are real Drizzle queries
+// against the platform schema:
+//   - contacts.whatsapp_consent / unsubscribed_at / deleted_at
+//   - email_suppressions (shared suppression list, keyed by contact_id)
+//   - flow_enrollments (active automation run guard)
+//   - conversations (active human handoff guard)
+
+import { and, eq, isNotNull } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import {
+  contacts,
+  conversations,
+  email_suppressions,
+  flow_enrollments,
+} from '@gccstartup/db'
 
 export interface EligibilityResult {
-  allowed: boolean;
+  allowed: boolean
   reason?:
     | 'OPTED_OUT'
     | 'SUPPRESSED'
@@ -11,16 +24,16 @@ export interface EligibilityResult {
     | 'TEMPLATE_NOT_APPROVED'
     | 'ACTIVE_HUMAN_HANDOFF'
     | 'ACTIVE_FLOW_RUN'
-    | 'OK';
-  details?: string;
+    | 'OK'
+  details?: string
 }
 
 export interface CheckMarketingEligibilityParams {
-  contactId: string;
-  phoneNumber: string;
-  templateCategory?: string;
-  templateStatus?: string;
-  checkHandoff?: boolean;
+  contactId: string
+  phoneNumber: string
+  templateCategory?: string
+  templateStatus?: string
+  checkHandoff?: boolean
 }
 
 /**
@@ -29,57 +42,59 @@ export interface CheckMarketingEligibilityParams {
 export async function checkMarketingEligibility(
   params: CheckMarketingEligibilityParams
 ): Promise<EligibilityResult> {
-  const { contactId, templateCategory, templateStatus, checkHandoff = false } = params;
+  const { contactId, templateCategory, templateStatus, checkHandoff = false } = params
 
-  // TODO: Replace with Drizzle queries
-  // 1. Check Contact Status
-  // const contact = await prisma.contact.findUnique({
-  //   where: { id: contactId },
-  //   select: { status: true, optedOutAt: true },
-  // });
-  const contact = null as any;
+  // 1. Contact status / WhatsApp consent
+  const contactRows = await db
+    .select({
+      whatsapp_consent: contacts.whatsapp_consent,
+      unsubscribed_at: contacts.unsubscribed_at,
+      deleted_at: contacts.deleted_at,
+    })
+    .from(contacts)
+    .where(eq(contacts.id, contactId))
+    .limit(1)
+  const contact = contactRows[0]
 
-  if (!contact || contact.status === 'UNSUBSCRIBED' || contact.optedOutAt) {
+  if (!contact || contact.whatsapp_consent === 'denied' || contact.unsubscribed_at) {
     return {
       allowed: false,
       reason: 'OPTED_OUT',
-      details: 'Contact has opted out or is marked as unsubscribed.',
-    };
+      details: 'Contact has opted out, revoked WhatsApp consent, or does not exist.',
+    }
   }
 
-  if (contact.status === 'BLOCKED' || contact.status === 'BOUNCED') {
+  if (contact.deleted_at) {
     return {
       allowed: false,
       reason: 'CONTACT_NOT_ACTIVE',
-      details: `Contact is currently in ${contact.status} status.`,
-    };
+      details: 'Contact is soft-deleted.',
+    }
   }
 
-  // 2. Check Suppression List
-  // TODO: Replace with Drizzle query
-  // const suppression = await prisma.contactSuppression.findFirst({
-  //   where: {
-  //     contactId,
-  //     type: { in: ['MARKETING_OPT_OUT', 'GLOBAL_SUPPRESSION', 'MANUAL_SUPPRESSION'] },
-  //   },
-  // });
-  const suppression = null as any;
+  // 2. Suppression list
+  const suppressionRows = await db
+    .select({ reason: email_suppressions.reason, detail: email_suppressions.detail })
+    .from(email_suppressions)
+    .where(eq(email_suppressions.contact_id, contactId))
+    .limit(1)
+  const suppression = suppressionRows[0]
 
   if (suppression) {
     return {
       allowed: false,
       reason: 'SUPPRESSED',
-      details: `Contact is on the suppression list: ${suppression.type} (${suppression.reason || 'No reason provided'}).`,
-    };
+      details: `Contact is on the suppression list: ${suppression.reason} (${suppression.detail || 'No detail provided'}).`,
+    }
   }
 
-  // 3. Check Template Requirements
+  // 3. Template requirements
   if (templateCategory && templateCategory.toUpperCase() !== 'MARKETING') {
     return {
       allowed: false,
       reason: 'TEMPLATE_NOT_MARKETING',
       details: `Template category is ${templateCategory}, not MARKETING.`,
-    };
+    }
   }
 
   if (templateStatus && templateStatus.toUpperCase() !== 'APPROVED') {
@@ -87,43 +102,49 @@ export async function checkMarketingEligibility(
       allowed: false,
       reason: 'TEMPLATE_NOT_APPROVED',
       details: `Template status is ${templateStatus}, must be APPROVED by Meta.`,
-    };
+    }
   }
 
-  // 4. Check Active Human Handoff (optional guardrail)
+  // 4. Active human handoff (optional guardrail)
   if (checkHandoff) {
-    // TODO: Replace with Drizzle query
-    // const activeSession = await prisma.flowRun.findFirst({
-    //   where: { contactId, status: 'ACTIVE' },
-    // });
-    const activeSession = null as any;
+    const activeEnrollmentRows = await db
+      .select({ id: flow_enrollments.id })
+      .from(flow_enrollments)
+      .where(and(eq(flow_enrollments.contact_id, contactId), eq(flow_enrollments.status, 'active')))
+      .limit(1)
 
-    if (activeSession) {
+    if (activeEnrollmentRows.length > 0) {
       return {
         allowed: false,
         reason: 'ACTIVE_FLOW_RUN',
-        details: 'Contact is mid-way through an active automated flow; sending a marketing broadcast now could derail it.',
-      };
+        details:
+          'Contact is mid-way through an active automated flow; sending a marketing broadcast now could derail it.',
+      }
     }
 
-    // TODO: Replace with Drizzle query
-    // const openConversation = await prisma.conversation.findUnique({
-    //   where: { contactId },
-    //   select: { status: true, assignedToId: true },
-    // });
-    const openConversation = null as any;
+    const openConversationRows = await db
+      .select({ assigned_to: conversations.assigned_to })
+      .from(conversations)
+      .where(
+        and(
+          eq(conversations.contact_id, contactId),
+          eq(conversations.state, 'open'),
+          isNotNull(conversations.assigned_to)
+        )
+      )
+      .limit(1)
 
-    if (openConversation?.assignedToId && openConversation.status === 'OPEN') {
+    if (openConversationRows.length > 0) {
       return {
         allowed: false,
         reason: 'ACTIVE_HUMAN_HANDOFF',
         details: 'Contact is currently in active conversation with a live human advisor.',
-      };
+      }
     }
   }
 
   return {
     allowed: true,
     reason: 'OK',
-  };
+  }
 }

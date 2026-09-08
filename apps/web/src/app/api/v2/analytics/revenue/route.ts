@@ -1,42 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
+import { eq, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { contacts, deals } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson } from '../../_lib'
 
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    // TODO: Query actual revenue data from database
-    const revenue = {
-      total: 2450000,
-      currency: 'AED',
-      monthly: [
-        { month: '2026-01', value: 180000 },
-        { month: '2026-02', value: 210000 },
-        { month: '2026-03', value: 195000 },
-        { month: '2026-04', value: 240000 },
-        { month: '2026-05', value: 280000 },
-        { month: '2026-06', value: 320000 },
-        { month: '2026-07', value: 350000 },
-        { month: '2026-08', value: 375000 },
-      ],
-      bySource: [
-        { source: 'Direct', value: 890000, percentage: 0.363 },
-        { source: 'Referral', value: 620000, percentage: 0.253 },
-        { source: 'Website', value: 480000, percentage: 0.196 },
-        { source: 'Campaign', value: 460000, percentage: 0.188 },
-      ],
-      forecast: {
-        nextMonth: 400000,
-        nextQuarter: 1200000,
-        confidence: 0.78,
-      },
-      period: { start: '2026-01-01', end: '2026-08-31' },
-    }
+  if (!hasPermission(key, 'analytics:read')) return errorJson('Missing permission: analytics:read', 403)
+  return handle(async () => {
+    try {
+      // Revenue = closed-won deals, summed by month of close, in the deals' currency.
+      const monthly = await db
+        .select({
+          month: sql<string>`to_char(date_trunc('month', ${deals.closed_at}), 'YYYY-MM')`,
+          currency: deals.currency,
+          value: sql<number>`coalesce(sum(${deals.value}), 0)::bigint`,
+          count: sql<number>`count(*)::int`,
+        })
+        .from(deals)
+        .where(eq(deals.status, 'won'))
+        .groupBy(sql`date_trunc('month', ${deals.closed_at})`, deals.currency)
+        .orderBy(sql`date_trunc('month', ${deals.closed_at})`)
 
-    const response = NextResponse.json({ data: revenue })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+      const bySource = await db
+        .select({
+          source: sql<string>`coalesce(${contacts.source}, 'unknown')`,
+          value: sql<number>`coalesce(sum(${deals.value}), 0)::bigint`,
+        })
+        .from(deals)
+        .leftJoin(contacts, eq(deals.contact_id, contacts.id))
+        .where(eq(deals.status, 'won'))
+        .groupBy(sql`coalesce(${contacts.source}, 'unknown')`)
+
+      const total = monthly.reduce((sum, row) => sum + Number(row.value), 0)
+      const sourceTotal = bySource.reduce((sum, row) => sum + Number(row.value), 0)
+
+      return json({
+        total,
+        currency: monthly[0]?.currency ?? 'USD',
+        monthly: monthly.map((row) => ({ month: row.month, value: Number(row.value), currency: row.currency, deals: row.count })),
+        bySource: bySource.map((row) => ({
+          source: row.source,
+          value: Number(row.value),
+          percentage: sourceTotal > 0 ? Number(row.value) / sourceTotal : 0,
+        })),
+      })
+    } catch (error) {
+      console.error('[api/v2/analytics/revenue] query failed', error)
+      return json({ total: 0, currency: 'USD', monthly: [], bySource: [] })
+    }
+  })
 })
 
 export async function OPTIONS() {

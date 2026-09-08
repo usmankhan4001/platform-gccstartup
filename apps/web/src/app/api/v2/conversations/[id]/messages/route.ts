@@ -1,61 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, addCorsHeaders } from '@/lib/api-auth'
+import { asc, eq, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { conversations, messages } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId, type RouteContext } from '../../../_lib'
 
-const stubMessages = [
-  { id: '1', conversationId: '1', direction: 'inbound', content: 'Hello, I need help', channel: 'whatsapp', status: 'delivered', createdAt: new Date().toISOString() },
-  { id: '2', conversationId: '1', direction: 'outbound', content: 'Hi! How can I assist you?', channel: 'whatsapp', status: 'sent', createdAt: new Date().toISOString() },
-]
+type Ctx = { params: Promise<{ id: string }> }
 
-type RouteContext = { params: Promise<{ id: string }> }
-
-export const GET = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+export const GET = requireApiKey(async (request: NextRequest, context: Ctx, key: any) => {
+  if (!hasPermission(key, 'conversations:read')) return errorJson('Missing permission: conversations:read', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const { page, limit, offset } = parsePagination(request)
+    const { page, limit, offset } = paginationFrom(request)
 
-    const messages = stubMessages.filter(m => m.conversationId === id)
-    const total = messages.length
-    const paginated = messages.slice(offset, offset + limit)
+    const conversation = await db.select({ id: conversations.id }).from(conversations).where(eq(conversations.id, id)).limit(1)
+    if (!conversation.length) return errorJson('Conversation not found', 404)
 
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const [rows, totals] = await Promise.all([
+      db.select().from(messages).where(eq(messages.conversation_id, id)).orderBy(asc(messages.occurred_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(messages).where(eq(messages.conversation_id, id)),
+    ])
+
+    return json(
+      rows.map((row) => ({
+        id: row.id,
+        conversationId: row.conversation_id,
+        direction: row.direction,
+        body: row.body,
+        mediaUrl: row.media_url,
+        status: row.status,
+        templateId: row.template_id,
+        occurredAt: row.occurred_at,
+        createdAt: row.created_at,
+      })),
+      200,
+      metaFor(page, limit, totals[0]?.count ?? 0),
+    )
+  })
 })
 
-export const POST = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+export const POST = requireApiKey(async (request: NextRequest, context: Ctx, key: any) => {
+  if (!hasPermission(key, 'conversations:write')) return errorJson('Missing permission: conversations:write', 403)
+  return handle(async () => {
     const { id } = await context.params
     const body = await request.json()
-    const { content, channel = 'whatsapp', direction = 'outbound', mediaUrl } = body
+    const { content, mediaUrl, templateId } = body ?? {}
 
-    if (!content?.trim()) {
-      const response = NextResponse.json({ error: 'Message content is required' }, { status: 400 })
-      return addCorsHeaders(response)
-    }
+    if (!content?.trim()) return errorJson('Message content is required', 400)
 
-    const message = {
-      id: 'msg-' + Date.now(),
-      conversationId: id,
-      direction,
-      content,
-      channel,
-      mediaUrl,
-      status: 'sent',
-      createdAt: new Date().toISOString(),
-    }
+    const conversationRows = await db.select().from(conversations).where(eq(conversations.id, id)).limit(1)
+    const conversation = conversationRows[0]
+    if (!conversation) return errorJson('Conversation not found', 404)
 
-    const response = NextResponse.json({ data: message }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const now = new Date()
+    const created = await db
+      .insert(messages)
+      .values({
+        id: newId(),
+        conversation_id: id,
+        direction: 'outbound',
+        body: String(content),
+        media_url: mediaUrl ? String(mediaUrl) : null,
+        message_ref: `msg:${id}:${now.getTime()}`.slice(0, 100),
+        status: 'sent',
+        sent_at: now,
+        template_id: templateId ? String(templateId) : null,
+        occurred_at: now,
+      })
+      .returning()
+
+    await db
+      .update(conversations)
+      .set({ last_message_at: now, last_outbound_at: now, updated_at: now })
+      .where(eq(conversations.id, id))
+
+    const row = created[0]
+    return json({
+      id: row.id,
+      conversationId: row.conversation_id,
+      direction: row.direction,
+      body: row.body,
+      mediaUrl: row.media_url,
+      status: row.status,
+      occurredAt: row.occurred_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {

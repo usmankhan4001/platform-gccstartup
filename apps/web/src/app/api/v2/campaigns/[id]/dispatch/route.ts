@@ -1,41 +1,40 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
+import { eq } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { email_campaigns } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, type RouteContext } from '../../../_lib'
+import { enqueueBroadcast } from '@/lib/email/send'
+import { emailDirectus } from '@/lib/email/client'
 
-const stubCampaigns = [
-  { id: '1', name: 'Welcome Series', type: 'whatsapp', status: 'active', audience: { segmentId: 'seg-1', count: 150 }, sent: 150, delivered: 145, read: 120, replied: 35, createdAt: new Date().toISOString() },
-]
+type Ctx = { params: Promise<{ id: string }> }
 
-type RouteContext = { params: Promise<{ id: string }> }
-
-export const POST = requireApiKey(async (request: NextRequest, context: RouteContext, key: any) => {
-  try {
+export const POST = requireApiKey(async (request: NextRequest, context: Ctx, key: any) => {
+  if (!hasPermission(key, 'campaigns:write')) return errorJson('Missing permission: campaigns:write', 403)
+  return handle(async () => {
     const { id } = await context.params
-    const campaign = stubCampaigns.find(c => c.id === id)
+    const body = await request.json().catch(() => ({}))
+    const deliverAt =
+      typeof body?.deliverAt === 'string' && !Number.isNaN(Date.parse(body.deliverAt)) ? new Date(body.deliverAt) : undefined
 
-    if (!campaign) {
-      const response = NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
-      return addCorsHeaders(response)
+    const existing = await db.select({ status: email_campaigns.status }).from(email_campaigns).where(eq(email_campaigns.id, id)).limit(1)
+    if (!existing[0]) return errorJson('Campaign not found', 404)
+    if (['sent', 'cancelled'].includes(existing[0].status)) {
+      return errorJson(`Campaign already ${existing[0].status}`, 400)
     }
 
-    if (campaign.status === 'completed') {
-      const response = NextResponse.json({ error: 'Campaign already completed' }, { status: 400 })
-      return addCorsHeaders(response)
-    }
+    const result = await enqueueBroadcast(emailDirectus(), id, deliverAt ? { deliverAt } : {})
+    if (!result.ok) return errorJson(result.error ?? 'Dispatch failed', 409)
 
-    // TODO: Queue messages for dispatch
-    const dispatchResult = {
-      campaignId: id,
+    return json({
+      campaignId: result.campaignId,
       status: 'dispatching',
-      totalRecipients: campaign.audience.count,
+      totalRecipients: result.recipientCount,
+      blocked: result.blocked,
+      truncated: result.truncated,
       queuedAt: new Date().toISOString(),
-    }
-
-    const response = NextResponse.json({ data: dispatchResult }, { status: 202 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    }, 202)
+  })
 })
 
 export async function OPTIONS() {

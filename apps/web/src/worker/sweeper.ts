@@ -1,34 +1,67 @@
-// TODO: Replace with platform-specific DB client when available
-// import { prisma } from '@/lib/db';
-// import { dispatchCampaign } from './dispatcher';
-// import { logger } from '@/lib/logger';
+// Recovers work abandoned mid-flight and reconciles campaign counters.
 
-const logger = { warn: (d: any, m: string) => console.warn(m, d), error: (d: any, m: string) => console.error(m, d), info: (d: any, m: string) => console.log(m, d) };
+import { eq, and, inArray, lt, sql } from 'drizzle-orm'
+import { db } from '../lib/db'
+import { outbox_jobs, email_campaigns, email_sends } from '@gccstartup/db'
+import { reapStaleJobs } from '../lib/email/send'
 
 /**
- * Recovers campaigns stuck in RUNNING or QUEUED state without progress for > 5 minutes
+ * Jobs/campaigns stuck in an active state without progress are reaped back to
+ * pending (jobs) or finalized (campaigns) so they can never wedge the pipeline.
  */
 export async function sweepStuckCampaigns(): Promise<void> {
   try {
-    // TODO: Replace with platform DB client
-    // const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    // const stuckCampaigns = await prisma.campaign.findMany({
-    //   where: { status: { in: ['RUNNING', 'QUEUED'] }, updatedAt: { lte: fiveMinutesAgo } },
-    // });
-    // For each stuck campaign, check pending messages and resume or finalize
+    await reapStaleJobs(null)
+
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000)
+    const stuck = await db
+      .select({ id: email_campaigns.id })
+      .from(email_campaigns)
+      .where(and(inArray(email_campaigns.status, ['sending']), lt(email_campaigns.updated_at, fiveMinutesAgo)))
+
+    for (const campaign of stuck) {
+      // A campaign with no pending outbox work left is done; otherwise it will
+      // be picked back up by the next dispatch pass.
+      const pending = await db
+        .select({ id: outbox_jobs.id })
+        .from(outbox_jobs)
+        .where(and(eq(outbox_jobs.status, 'pending'), lt(outbox_jobs.next_run_at, new Date())))
+        .limit(1)
+      if (!pending.length) {
+        await db
+          .update(email_campaigns)
+          .set({ status: 'sent', updated_at: new Date() })
+          .where(eq(email_campaigns.id, campaign.id))
+        console.log(`[Sweeper] finalized stalled campaign ${campaign.id}`)
+      }
+    }
   } catch (error) {
-    logger.error({ error }, '[Sweeper] Error sweeping stuck campaigns');
+    console.error('[Sweeper] Error sweeping stuck campaigns', error)
   }
 }
 
 /**
- * Reconciles aggregated analytics counters from CampaignMessage rows
+ * Read-repair for campaign counters: logs the true per-status send counts so
+ * drift between the campaign row and email_sends is visible in the logs. The
+ * campaign detail endpoint computes its aggregates live from email_sends, so
+ * there is nothing to write back until a denormalised counter column exists.
  */
 export async function reconcileCampaignCounters(): Promise<void> {
   try {
-    // TODO: Replace with platform DB client
-    // Fetch active campaigns and reconcile counts from CampaignMessage rows
+    const active = await db
+      .select({ id: email_campaigns.id })
+      .from(email_campaigns)
+      .where(inArray(email_campaigns.status, ['sending', 'sent']))
+
+    for (const campaign of active) {
+      const counts = await db
+        .select({ status: email_sends.status, total: sql<number>`count(*)::int` })
+        .from(email_sends)
+        .where(eq(email_sends.campaign_id, campaign.id))
+        .groupBy(email_sends.status)
+      console.log(`[Sweeper] campaign ${campaign.id} counters`, counts)
+    }
   } catch (error) {
-    logger.error({ error }, '[Sweeper] Error reconciling counters');
+    console.error('[Sweeper] Error reconciling counters', error)
   }
 }

@@ -1,73 +1,82 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, parseSearch, parseFilters, addCorsHeaders } from '@/lib/api-auth'
+import { and, desc, ilike, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { media } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId } from '../_lib'
 
-const stubDocuments = [
-  { id: '1', name: 'Pitch Deck.pdf', type: 'pdf', size: 2048000, mimeType: 'application/pdf', uploadedBy: 'user-1', contactId: '1', dealId: '1', url: 'https://storage.gcc.com/docs/1/pitch-deck.pdf', createdAt: new Date().toISOString() },
-  { id: '2', name: 'Contract.docx', type: 'docx', size: 512000, mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', uploadedBy: 'user-2', contactId: '2', dealId: '2', url: 'https://storage.gcc.com/docs/2/contract.docx', createdAt: new Date().toISOString() },
-]
-
+/**
+ * Documents are the `media` table: a file record with an R2 object key. The upload
+ * itself goes through POST /api/v2/documents/presign; a record created here exists
+ * before its object until the upload completes.
+ */
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    const { page, limit, offset } = parsePagination(request)
-    const search = parseSearch(request)
-    const filters = parseFilters(request)
+  if (!hasPermission(key, 'documents:read')) return errorJson('Missing permission: documents:read', 403)
+  return handle(async () => {
+    const { page, limit, offset } = paginationFrom(request)
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const filters: Array<any> = []
+    if (search) filters.push(ilike(media.file_name, `%${search}%`))
+    const where = filters.length ? and(...filters) : undefined
 
-    let documents = [...stubDocuments]
+    const [rows, totals] = await Promise.all([
+      db.select().from(media).where(where).orderBy(desc(media.created_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(media).where(where),
+    ])
 
-    if (search) {
-      const q = search.toLowerCase()
-      documents = documents.filter(d => d.name.toLowerCase().includes(q))
-    }
-
-    for (const [filterKey, filterValue] of Object.entries(filters)) {
-      documents = documents.filter(d => (d as any)[filterKey] === filterValue)
-    }
-
-    const total = documents.length
-    const paginated = documents.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    return json(rows.map((row) => ({
+      id: row.id,
+      name: row.file_name,
+      storageKey: row.r2_key,
+      mimeType: row.mime_type,
+      size: row.file_size_bytes,
+      width: row.width,
+      height: row.height,
+      altText: row.alt_text,
+      folderId: row.folder_id,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+    })), 200, metaFor(page, limit, totals[0]?.count ?? 0))
+  })
 })
 
 export const POST = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
+  if (!hasPermission(key, 'documents:write')) return errorJson('Missing permission: documents:write', 403)
+  return handle(async () => {
     const body = await request.json()
-    const { name, type, size, mimeType, contactId, dealId, customAttributes = {} } = body
+    const { name, mimeType, size, folderId, altText } = body ?? {}
 
-    if (!name?.trim()) {
-      const response = NextResponse.json({ error: 'Document name is required' }, { status: 400 })
-      return addCorsHeaders(response)
-    }
+    if (!name?.trim()) return errorJson('Document name is required', 400)
+    if (!mimeType?.trim()) return errorJson('mimeType is required', 400)
 
-    const document = {
-      id: 'doc-' + Date.now(),
-      name,
-      type,
-      size,
-      mimeType,
-      uploadedBy: key.id,
-      contactId,
-      dealId,
-      url: `https://storage.gcc.com/docs/${Date.now()}/${name}`,
-      customAttributes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    const storageKey = `docs/${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}/${String(name).replace(/[^\w.\-]+/g, '_')}`.slice(0, 500)
 
-    const response = NextResponse.json({ data: document }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const created = await db
+      .insert(media)
+      .values({
+        id: newId(),
+        file_name: String(name).trim().slice(0, 255),
+        r2_key: storageKey,
+        mime_type: String(mimeType).slice(0, 100),
+        file_size_bytes: Number.isFinite(Number(size)) ? Number(size) : 0,
+        folder_id: folderId ? String(folderId) : null,
+        alt_text: altText ? String(altText) : null,
+        uploaded_by: key.id,
+      })
+      .returning()
+
+    const row = created[0]
+    return json({
+      id: row.id,
+      name: row.file_name,
+      storageKey: row.r2_key,
+      mimeType: row.mime_type,
+      size: row.file_size_bytes,
+      uploadedBy: row.uploaded_by,
+      createdAt: row.created_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {

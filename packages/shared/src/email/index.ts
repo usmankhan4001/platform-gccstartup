@@ -1,4 +1,4 @@
-export type { EmailProvider, EmailSendParams, EmailBulkSendParams, EmailSendResult } from './provider.js'
+export type { EmailProvider, EmailSendParams, EmailBulkSendParams, EmailSendResult } from './provider'
 export {
   type SenderResult,
   type SenderCampaign,
@@ -11,5 +11,5 @@ export {
   type SenderTemplateTransactionalInput,
   type EmailSender,
   senderAdapter,
-} from './provider.js'
-export { createSESProvider } from './ses.js'
+} from './provider'
+export { createSESProvider } from './ses'

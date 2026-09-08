@@ -1,72 +1,94 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, parseSearch, parseFilters, addCorsHeaders } from '@/lib/api-auth'
+import { and, desc, eq, ilike, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { email_templates } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId } from '../_lib'
 
-const stubTemplates = [
-  { id: '1', name: 'Welcome Message', type: 'whatsapp', category: 'marketing', language: 'en', status: 'approved', content: 'Hello {{firstName}}, welcome to {{companyName}}!', variables: ['firstName', 'companyName'], createdAt: new Date().toISOString() },
-  { id: '2', name: 'Order Confirmation', type: 'email', category: 'transactional', language: 'en', status: 'approved', content: '<h1>Order #{{orderId}} confirmed</h1>', variables: ['orderId'], createdAt: new Date().toISOString() },
-]
+const CATEGORIES = ['marketing', 'transactional', 'flow', 'notification'] as const
 
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    const { page, limit, offset } = parsePagination(request)
-    const search = parseSearch(request)
-    const filters = parseFilters(request)
+  if (!hasPermission(key, 'templates:read')) return errorJson('Missing permission: templates:read', 403)
+  return handle(async () => {
+    const { page, limit, offset } = paginationFrom(request)
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const filters: Array<any> = []
 
-    let templates = [...stubTemplates]
-
-    if (search) {
-      const q = search.toLowerCase()
-      templates = templates.filter(t => t.name.toLowerCase().includes(q))
+    for (const [rawKey, rawValue] of searchParams.entries()) {
+      if (!rawKey.startsWith('filter[') || !rawKey.endsWith(']')) continue
+      const filterKey = rawKey.slice(7, -1)
+      if (filterKey === 'category' && (CATEGORIES as readonly string[]).includes(rawValue)) {
+        filters.push(eq(email_templates.category, rawValue as (typeof CATEGORIES)[number]))
+      } else if (filterKey === 'isActive' && ['true', 'false'].includes(rawValue)) {
+        filters.push(eq(email_templates.is_active, rawValue === 'true'))
+      }
     }
+    if (search) filters.push(ilike(email_templates.name, `%${search}%`))
+    const where = filters.length ? and(...filters) : undefined
 
-    for (const [filterKey, filterValue] of Object.entries(filters)) {
-      templates = templates.filter(t => (t as any)[filterKey] === filterValue)
-    }
+    const [rows, totals] = await Promise.all([
+      db.select().from(email_templates).where(where).orderBy(desc(email_templates.updated_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(email_templates).where(where),
+    ])
 
-    const total = templates.length
-    const paginated = templates.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const total = totals[0]?.count ?? 0
+    return json(rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: 'email',
+      category: row.category,
+      subject: row.subject,
+      content: row.html_body,
+      variables: row.variables ?? [],
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })), 200, metaFor(page, limit, total))
+  })
 })
 
 export const POST = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
+  if (!hasPermission(key, 'templates:write')) return errorJson('Missing permission: templates:write', 403)
+  return handle(async () => {
     const body = await request.json()
-    const { name, type = 'whatsapp', category = 'marketing', language = 'en', content, variables = [], status = 'draft', customAttributes = {} } = body
+    const { name, subject, content, text, blocks, variables, category, customAttributes } = body ?? {}
 
-    if (!name?.trim() || !content?.trim()) {
-      const response = NextResponse.json({ error: 'Name and content are required' }, { status: 400 })
-      return addCorsHeaders(response)
+    if (!name?.trim() || !subject?.trim() || !content?.trim()) {
+      return errorJson('Name, subject and content are required', 400)
     }
 
-    const template = {
-      id: 'template-' + Date.now(),
-      name,
-      type,
-      category,
-      language,
-      content,
-      variables,
-      status,
-      customAttributes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    const created = await db
+      .insert(email_templates)
+      .values({
+        id: newId(),
+        name: String(name).trim().slice(0, 200),
+        subject: String(subject).trim().slice(0, 500),
+        html_body: String(content),
+        text_body: text ? String(text) : null,
+        blocks: Array.isArray(blocks) ? blocks : [],
+        variables: Array.isArray(variables) ? variables.map(String) : [],
+        category: (CATEGORIES as readonly string[]).includes(category) ? category : 'marketing',
+        ...(customAttributes && typeof customAttributes === 'object' && 'description' in customAttributes
+          ? { description: String((customAttributes as Record<string, unknown>).description) }
+          : {}),
+      })
+      .returning()
 
-    const response = NextResponse.json({ data: template }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const row = created[0]
+    return json({
+      id: row.id,
+      name: row.name,
+      type: 'email',
+      category: row.category,
+      subject: row.subject,
+      content: row.html_body,
+      variables: row.variables ?? [],
+      isActive: row.is_active,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {

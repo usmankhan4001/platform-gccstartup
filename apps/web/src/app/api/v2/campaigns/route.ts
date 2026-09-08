@@ -1,75 +1,90 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { requireApiKey, parsePagination, parseSearch, parseFilters, addCorsHeaders } from '@/lib/api-auth'
+import { and, desc, eq, ilike, sql } from 'drizzle-orm'
+import { db } from '@/lib/db'
+import { email_campaigns, email_templates } from '@gccstartup/db'
+import { requireApiKey, hasPermission, addCorsHeaders } from '@/lib/api-auth'
+import { handle, json, errorJson, paginationFrom, metaFor, newId } from '../_lib'
 
-const stubCampaigns = [
-  { id: '1', name: 'Welcome Series', type: 'whatsapp', status: 'active', audience: { segmentId: 'seg-1', count: 150 }, sent: 150, delivered: 145, read: 120, replied: 35, createdAt: new Date().toISOString() },
-  { id: '2', name: 'Q2 Promo', type: 'email', status: 'draft', audience: { segmentId: 'seg-2', count: 500 }, sent: 0, delivered: 0, read: 0, replied: 0, createdAt: new Date().toISOString() },
-]
+const STATUSES = ['draft', 'scheduled', 'sending', 'paused', 'sent', 'cancelled', 'failed'] as const
 
 export const GET = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
-    const { page, limit, offset } = parsePagination(request)
-    const search = parseSearch(request)
-    const filters = parseFilters(request)
+  if (!hasPermission(key, 'campaigns:read')) return errorJson('Missing permission: campaigns:read', 403)
+  return handle(async () => {
+    const { page, limit, offset } = paginationFrom(request)
+    const { searchParams } = new URL(request.url)
+    const search = searchParams.get('search')
+    const filters: Array<any> = []
 
-    let campaigns = [...stubCampaigns]
-
-    if (search) {
-      const q = search.toLowerCase()
-      campaigns = campaigns.filter(c => c.name.toLowerCase().includes(q))
+    for (const [rawKey, rawValue] of searchParams.entries()) {
+      if (!rawKey.startsWith('filter[') || !rawKey.endsWith(']')) continue
+      const filterKey = rawKey.slice(7, -1)
+      if (filterKey === 'status' && (STATUSES as readonly string[]).includes(rawValue)) {
+        filters.push(eq(email_campaigns.status, rawValue as (typeof STATUSES)[number]))
+      } else if (filterKey === 'templateId' && rawValue) {
+        filters.push(eq(email_campaigns.template_id, rawValue))
+      }
     }
+    if (search) filters.push(ilike(email_campaigns.name, `%${search}%`))
+    const where = filters.length ? and(...filters) : undefined
 
-    for (const [filterKey, filterValue] of Object.entries(filters)) {
-      campaigns = campaigns.filter(c => (c as any)[filterKey] === filterValue)
-    }
+    const [rows, totals] = await Promise.all([
+      db.select().from(email_campaigns).where(where).orderBy(desc(email_campaigns.updated_at)).limit(limit).offset(offset),
+      db.select({ count: sql<number>`count(*)::int` }).from(email_campaigns).where(where),
+    ])
 
-    const total = campaigns.length
-    const paginated = campaigns.slice(offset, offset + limit)
-
-    const response = NextResponse.json({
-      data: paginated,
-      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
-    })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    return json(rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      type: 'email',
+      templateId: row.template_id,
+      status: row.status,
+      audience: { filter: row.audience_filter, count: row.recipient_count ?? 0 },
+      scheduledAt: row.scheduled_at,
+      recipientCount: row.recipient_count,
+      sent: row.status === 'sent' ? row.recipient_count ?? 0 : 0,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    })), 200, metaFor(page, limit, totals[0]?.count ?? 0))
+  })
 })
 
 export const POST = requireApiKey(async (request: NextRequest, context: any, key: any) => {
-  try {
+  if (!hasPermission(key, 'campaigns:write')) return errorJson('Missing permission: campaigns:write', 403)
+  return handle(async () => {
     const body = await request.json()
-    const { name, type = 'whatsapp', templateId, audience, status = 'draft', scheduledAt, customAttributes = {} } = body
+    const { name, templateId, audience, scheduledAt, customAttributes } = body ?? {}
 
-    if (!name?.trim()) {
-      const response = NextResponse.json({ error: 'Campaign name is required' }, { status: 400 })
-      return addCorsHeaders(response)
-    }
+    if (!name?.trim()) return errorJson('Campaign name is required', 400)
+    if (!templateId) return errorJson('templateId is required', 400)
 
-    const campaign = {
-      id: 'campaign-' + Date.now(),
-      name,
-      type,
-      templateId,
-      audience: audience || { segmentId: null, count: 0 },
-      status,
-      scheduledAt,
-      sent: 0,
-      delivered: 0,
-      read: 0,
-      replied: 0,
-      customAttributes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
+    const template = await db.select({ id: email_templates.id }).from(email_templates).where(eq(email_templates.id, String(templateId))).limit(1)
+    if (!template.length) return errorJson('Template not found', 400)
 
-    const response = NextResponse.json({ data: campaign }, { status: 201 })
-    return addCorsHeaders(response)
-  } catch (error: any) {
-    const response = NextResponse.json({ error: error.message }, { status: 500 })
-    return addCorsHeaders(response)
-  }
+    const created = await db
+      .insert(email_campaigns)
+      .values({
+        id: newId(),
+        name: String(name).trim().slice(0, 200),
+        template_id: String(templateId),
+        audience_filter: audience?.filter ?? audience ?? null,
+        status: scheduledAt ? 'scheduled' : 'draft',
+        scheduled_at: scheduledAt ? new Date(scheduledAt) : null,
+      })
+      .returning()
+
+    const row = created[0]
+    return json({
+      id: row.id,
+      name: row.name,
+      type: 'email',
+      templateId: row.template_id,
+      status: row.status,
+      audience: { filter: row.audience_filter, count: 0 },
+      scheduledAt: row.scheduled_at,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }, 201)
+  })
 })
 
 export async function OPTIONS() {
