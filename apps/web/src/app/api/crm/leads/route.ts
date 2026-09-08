@@ -72,7 +72,13 @@ export async function GET(request: NextRequest) {
       .from(contacts)
       .where(where)
 
-    return NextResponse.json({ data: rows, total: Number(totalRows[0]?.count) || 0 })
+    const total = Number(totalRows[0]?.count) || 0
+    return NextResponse.json({
+      data: rows,
+      leads: rows,
+      total,
+      hasNext: offset + limit < total,
+    })
   } catch (error) {
     if (error instanceof AuthError) {
       return NextResponse.json({ error: error.message }, { status: error.status })

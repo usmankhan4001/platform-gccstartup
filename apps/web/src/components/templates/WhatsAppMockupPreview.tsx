@@ -12,16 +12,33 @@ interface WhatsAppMockupProps {
   sampleVariables?: Record<string, string>;
   headerMediaUrl?: string;
   businessName?: string;
+  template?: any;
+  sampleValues?: Record<string, string>;
 }
 
 export function WhatsAppMockupPreview({
-  templateName = 'Template Preview',
-  category = 'MARKETING',
-  components = [],
-  sampleVariables = {},
+  templateName: initialName = 'Template Preview',
+  category: initialCategory = 'MARKETING',
+  components: initialComponents = [],
+  sampleVariables: initialVariables = {},
   headerMediaUrl,
-  businessName = 'Apex WhatsApp Business',
+  businessName = 'GCC Startup UAE',
+  template,
+  sampleValues,
 }: WhatsAppMockupProps) {
+  const templateName = template?.name || initialName;
+  const category = template?.category || initialCategory;
+  const sampleVariables = sampleValues || initialVariables;
+
+  let components = initialComponents;
+  if (template && (!components || components.length === 0)) {
+    components = [
+      template.header ? { type: 'HEADER', text: template.header } : null,
+      template.body ? { type: 'BODY', text: template.body } : null,
+      template.footer ? { type: 'FOOTER', text: template.footer } : null,
+    ].filter(Boolean);
+  }
+
   let parsedComponents: any[] = [];
 
   if (typeof components === 'string') {

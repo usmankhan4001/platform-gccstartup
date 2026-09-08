@@ -7,5 +7,13 @@ const nextConfig = {
       { protocol: 'https', hostname: '*.r2.cloudflarestorage.com' },
     ],
   },
+  async rewrites() {
+    return [
+      {
+        source: '/api/admin/crm/:path*',
+        destination: '/api/crm/:path*',
+      },
+    ]
+  },
 }
 export default nextConfig

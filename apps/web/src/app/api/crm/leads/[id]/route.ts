@@ -49,6 +49,14 @@ export async function GET(request: NextRequest, { params }: Params) {
         notes,
         deals: deals_,
       },
+      lead,
+      activities,
+      tasks,
+      stageHistory: [],
+      consents: [],
+      emailEvents: [],
+      notes,
+      deals: deals_,
     })
   } catch (error) {
     if (error instanceof AuthError) {

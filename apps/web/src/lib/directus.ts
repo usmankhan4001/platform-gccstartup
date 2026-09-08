@@ -4,6 +4,7 @@
 export type SiteSettings = Record<string, any>
 export type CountryItem = Record<string, any>
 export type LeadStatus = string
+export type LeadPriority = 'low' | 'normal' | 'high' | 'urgent'
 export type LeadItem = Record<string, any>
 export type LeadActivityItem = Record<string, any>
 export type LeadConsentItem = Record<string, any>
