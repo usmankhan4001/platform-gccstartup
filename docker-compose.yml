@@ -91,6 +91,9 @@ services:
       # set, so leaving it empty is a no-op on an already-seeded database.
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      # Set to true to mint a new Default Platform Key (the raw key is printed
+      # once to the container log). Unset it again afterwards.
+      SEED_API_KEY_ROTATE: ${SEED_API_KEY_ROTATE:-false}
     expose:
       - '3000'
     healthcheck:

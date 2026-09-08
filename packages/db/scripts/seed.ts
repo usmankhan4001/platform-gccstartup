@@ -126,9 +126,17 @@ async function seedApiKey() {
     .from(schema.api_keys)
     .where(eq(schema.api_keys.name, 'Default Platform Key'))
     .limit(1)
-  if (found[0]) {
+
+  // The raw key is only ever shown once, so an operator who lost it needs a way
+  // to mint a new one without shell access to the database.
+  if (found[0] && process.env.SEED_API_KEY_ROTATE !== 'true') {
     console.log('api key: Default Platform Key already exists (raw key not re-printed)')
     return
+  }
+
+  if (found[0]) {
+    await db.delete(schema.api_keys).where(eq(schema.api_keys.id, found[0].id))
+    console.log('api key: rotating Default Platform Key')
   }
 
   const raw = `gcc_${randomBytes(24).toString('hex')}`
