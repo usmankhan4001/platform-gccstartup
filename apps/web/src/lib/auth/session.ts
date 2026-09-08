@@ -136,14 +136,21 @@ export async function startSession(
   )
 
   const expiresAt = new Date(Date.now() + MAX_AGE * 1000)
-  await db.insert(sessions).values({
-    id: randomUUID(),
-    user_id: user.id,
-    token,
-    expires_at: expiresAt,
-    ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
-    user_agent: request.headers.get('user-agent') || null,
-  })
+  // Two logins in the same second produce a byte-identical JWT (same payload,
+  // same iat), and `sessions.token` is unique. Reusing the existing row is
+  // correct here — it is the same session — so the insert is idempotent rather
+  // than a 500 on the second request.
+  await db
+    .insert(sessions)
+    .values({
+      id: randomUUID(),
+      user_id: user.id,
+      token,
+      expires_at: expiresAt,
+      ip_address: request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || null,
+      user_agent: request.headers.get('user-agent') || null,
+    })
+    .onConflictDoNothing()
 
   const cookie = `${COOKIE_NAME}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${MAX_AGE}${
     process.env.NODE_ENV === 'production' ? '; Secure' : ''
