@@ -87,6 +87,10 @@ services:
       POSTHOG_KEY: ${POSTHOG_KEY:-}
       POSTHOG_HOST: ${POSTHOG_HOST:-}
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # First-run seed. The entrypoint seeds only when SEED_ADMIN_PASSWORD is
+      # set, so leaving it empty is a no-op on an already-seeded database.
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
     expose:
       - '3000'
     healthcheck:
