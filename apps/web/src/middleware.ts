@@ -3,6 +3,12 @@ import type { NextRequest } from 'next/server'
 
 const publicRoutes = ['/', '/login', '/signup', '/demo', '/api/health']
 
+// Must match the cookie the auth layer actually sets (see lib/auth/session.ts).
+// These two drifting apart is what made login look broken: the API returned a
+// user and set `gcc_session`, while the middleware kept looking for `session`
+// and bounced every protected page straight back to /login.
+const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME || 'gcc_session'
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
@@ -17,7 +23,7 @@ export function middleware(request: NextRequest) {
   }
 
   // Protected CRM/CMS/Admin and other routes — check session cookie
-  const session = request.cookies.get('session')?.value
+  const session = request.cookies.get(SESSION_COOKIE)?.value
 
   if (!session) {
     const loginUrl = new URL('/login', request.url)
