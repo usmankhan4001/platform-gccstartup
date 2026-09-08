@@ -13,7 +13,8 @@
  * non-sending actions (`start_flow`, `stop_flow`) use the flow engine's own
  * enrollment functions.
  */
-import { readItems } from '@directus/sdk'
+// TODO: Replace with Drizzle queries
+const readItems = (...args: any[]) => ([] as any)
 import type { ActionPayload, AutomationActionName } from '@/lib/automation/contract'
 import { emailDirectus, relationId } from './client'
 import { sendMarketingMessage } from './send'

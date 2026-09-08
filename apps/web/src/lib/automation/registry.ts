@@ -12,8 +12,10 @@
 // The registry pattern mirrors EMAIL_BLOCKS in src/puck/email-blocks/index.ts: one
 // object is the source of truth and a lookup helper is the only way to read it.
 
-import type { DirectusClient, RestClient } from '@directus/sdk'
-import { directus, type DirectusUserSummary, type Schema } from '@/lib/directus'
+// TODO: Replace with Drizzle queries
+type DirectusClient<T> = any
+type RestClient<T> = any
+import { directus, type DirectusUserSummary } from '@/lib/directus'
 import type { AutomationActionName } from './contract'
 import type { AutomationGraph, AutomationNode } from './nodes'
 
@@ -64,7 +66,7 @@ export type AutomationExecutionLogItem = {
   date_created?: string
 }
 
-export type AutomationSchema = Schema & {
+export type AutomationSchema = { [key: string]: any } & {
   automation_workflows: AutomationWorkflowItem[]
   automation_events: AutomationEventItem[]
   automation_executions: AutomationExecutionItem[]

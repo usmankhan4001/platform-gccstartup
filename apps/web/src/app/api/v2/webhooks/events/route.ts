@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { requireApiKey, addCorsHeaders } from '@/lib/api-auth'
 
 // Complete list of webhook events available for subscription

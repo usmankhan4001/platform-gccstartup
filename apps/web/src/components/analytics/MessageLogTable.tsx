@@ -4,8 +4,8 @@ import React, { useState } from 'react';
 import { CheckCheck, Check, AlertCircle, MessageSquare, Search } from 'lucide-react';
 
 import { formatDateTime } from '@/lib/utils';
-import { StatusBadge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Input } from '@/components/ui/Input';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Message = Record<string, any>;

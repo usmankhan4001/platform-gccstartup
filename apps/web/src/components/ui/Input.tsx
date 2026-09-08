@@ -1,57 +1,41 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
+import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
+import { cn } from '@/lib/utils'
 
-type FieldWrapperProps = { label?: string; htmlFor: string; children: ReactNode }
-
-function FieldWrapper({ label, htmlFor, children }: FieldWrapperProps) {
-  return (
-    <div className="field">
-      {label && <label htmlFor={htmlFor}>{label}</label>}
-      {children}
-    </div>
-  )
+interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+  label?: string
 }
 
-export function Input({
-  label,
-  id,
-  invalid,
-  className = '',
-  ...rest
-}: InputHTMLAttributes<HTMLInputElement> & { label?: string; invalid?: boolean }) {
-  return (
-    <FieldWrapper label={label} htmlFor={id ?? rest.name ?? ''}>
-      <input id={id ?? rest.name} className={[invalid ? 'invalid' : '', className].filter(Boolean).join(' ')} aria-invalid={invalid ? 'true' : undefined} {...rest} />
-    </FieldWrapper>
-  )
+export const Input = forwardRef<HTMLInputElement, InputProps>(
+  ({ className, label, id, ...props }, ref) => {
+    const inputId = id || props.name
+    const input = <input ref={ref} id={inputId} className={cn('flex h-10 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary disabled:opacity-50', className)} {...props} />
+    if (label) return <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-3)' }}><label htmlFor={inputId} style={{ fontSize: 14, fontWeight: 500 }}>{label}</label>{input}</div>
+    return input
+  },
+)
+
+interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
+  label?: string
 }
 
-export function Textarea({
-  label,
-  id,
-  invalid,
-  className = '',
-  ...rest
-}: TextareaHTMLAttributes<HTMLTextAreaElement> & { label?: string; invalid?: boolean }) {
-  return (
-    <FieldWrapper label={label} htmlFor={id ?? rest.name ?? ''}>
-      <textarea id={id ?? rest.name} className={[invalid ? 'invalid' : '', className].filter(Boolean).join(' ')} aria-invalid={invalid ? 'true' : undefined} {...rest} />
-    </FieldWrapper>
-  )
+export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, label, id, ...props }, ref) => {
+    const inputId = id || props.name
+    const textarea = <textarea ref={ref} id={inputId} className={cn('flex min-h-[80px] w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm placeholder:text-[var(--text-tertiary)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary disabled:opacity-50', className)} {...props} />
+    if (label) return <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-3)' }}><label htmlFor={inputId} style={{ fontSize: 14, fontWeight: 500 }}>{label}</label>{textarea}</div>
+    return textarea
+  },
+)
+
+interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
+  label?: string
 }
 
-export function Select({
-  label,
-  id,
-  invalid,
-  className = '',
-  children,
-  ...rest
-}: SelectHTMLAttributes<HTMLSelectElement> & { label?: string; invalid?: boolean; children: ReactNode }) {
-  return (
-    <FieldWrapper label={label} htmlFor={id ?? rest.name ?? ''}>
-      <select id={id ?? rest.name} className={[invalid ? 'invalid' : '', className].filter(Boolean).join(' ')} aria-invalid={invalid ? 'true' : undefined} {...rest}>
-        {children}
-      </select>
-    </FieldWrapper>
-  )
-}
+export const Select = forwardRef<HTMLSelectElement, SelectProps>(
+  ({ className, label, id, children, ...props }, ref) => {
+    const inputId = id || props.name
+    const select = <select ref={ref} id={inputId} className={cn('flex h-10 w-full rounded-md border border-[var(--border)] bg-[var(--bg)] px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary disabled:opacity-50', className)} {...props}>{children}</select>
+    if (label) return <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-1)', marginBottom: 'var(--space-3)' }}><label htmlFor={inputId} style={{ fontSize: 14, fontWeight: 500 }}>{label}</label>{select}</div>
+    return select
+  },
+)

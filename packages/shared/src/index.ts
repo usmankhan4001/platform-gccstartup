@@ -19,6 +19,17 @@ export {
   type EmailSendParams,
   type EmailBulkSendParams,
   type EmailSendResult,
+  type SenderResult,
+  type SenderCampaign,
+  type SenderCampaignInput,
+  type SenderGroup,
+  type SenderRateLimit,
+  type SenderSubscriber,
+  type SenderSubscriberInput,
+  type SenderTransactionalInput,
+  type SenderTemplateTransactionalInput,
+  type EmailSender,
+  senderAdapter,
   createSESProvider,
 } from './email/index.js'
 

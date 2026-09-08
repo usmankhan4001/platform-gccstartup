@@ -9,7 +9,6 @@
 
 import type { AutomationTriggerName, TriggerPayload } from './contract'
 import { evaluateTriggersForEvent } from './engine'
-import { automationDirectus } from './registry'
 // Register every cross-track action (email.*, send_whatsapp, create_ticket) before any
 // trigger can dispatch, so a workflow can act across all four tracks. Idempotent.
 import { registerAllActions } from './register-all'
@@ -20,8 +19,7 @@ export async function emitAutomationTrigger<N extends AutomationTriggerName>(
   payload: TriggerPayload[N],
 ): Promise<boolean> {
   try {
-    const client = automationDirectus()
-    await evaluateTriggersForEvent(client, name, payload)
+    await evaluateTriggersForEvent(name, payload)
     return true
   } catch (error) {
     console.error(`[automation] trigger "${name}" failed to dispatch`, error)

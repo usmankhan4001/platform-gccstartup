@@ -46,11 +46,11 @@ import {
 import { formatDateTime, formatTimeAgo } from '@/lib/utils';
 import { LEAD_STAGES, getLeadStage } from '@/lib/constants/lead-stages';
 import { InfoTooltip, Tooltip } from '@/components/ui/Tooltip';
-import { StatusBadge } from '@/components/ui/badge';
+import { StatusBadge } from '@/components/ui/StatusBadge';
 import { useToast } from '@/components/ui/Toast';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 import { AudioVoicePlayer } from './AudioVoicePlayer';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { MediaLightbox } from './MediaLightbox';

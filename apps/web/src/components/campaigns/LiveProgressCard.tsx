@@ -3,9 +3,9 @@
 import React from 'react';
 import { Play, Pause, XCircle } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import { StatusBadge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/Button';
+import { StatusBadge } from '@/components/ui/StatusBadge';
+import { Progress } from '@/components/ui/Progress';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyRecord = Record<string, any>;

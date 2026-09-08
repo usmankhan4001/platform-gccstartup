@@ -21,8 +21,8 @@ import {
 } from 'lucide-react';
 import { WhatsAppMockupPreview } from './WhatsAppMockupPreview';
 import { InfoTooltip } from '@/components/ui/Tooltip';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
+import { Modal } from '@/components/ui/Modal';
+import { Button } from '@/components/ui/Button';
 
 interface TemplateBuilderModalProps {
   isOpen: boolean;
@@ -278,7 +278,6 @@ export function TemplateBuilderModal({ isOpen, onClose, onCreated }: TemplateBui
       open={isOpen}
       onOpenChange={(o) => !o && onClose()}
       size="xl"
-      contentClassName="max-h-[80vh]"
       title={
         <span className="inline-flex items-center gap-2">
           <Sparkles className="size-4 text-primary" />

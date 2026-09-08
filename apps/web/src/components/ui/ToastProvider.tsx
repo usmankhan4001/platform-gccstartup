@@ -1,9 +1,16 @@
 'use client'
 import { createContext, useContext, useState } from 'react'
 
-type Toast = { id: string; message: string; type: 'success' | 'error' | 'info' }
+type ToastType = 'success' | 'error' | 'info'
+type Toast = { id: string; message: string; type: ToastType }
 
-const ToastContext = createContext<{ toast: (message: string, type?: Toast['type']) => void }>({ toast: () => {} })
+type ToastContextType = {
+  toast: (message: string, type?: ToastType) => void
+  success: (message: string) => void
+  error: (message: string, details?: any) => void
+}
+
+const ToastContext = createContext<ToastContextType>({ toast: () => {}, success: () => {}, error: () => {} })
 
 export function useToast() {
   return useContext(ToastContext)
@@ -11,13 +18,13 @@ export function useToast() {
 
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<Toast[]>([])
-  const toast = (message: string, type: Toast['type'] = 'info') => {
+  const toast = (message: string, type: ToastType = 'info') => {
     const id = Math.random().toString(36).slice(2)
     setToasts((prev) => [...prev, { id, message, type }])
     setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 3000)
   }
   return (
-    <ToastContext.Provider value={{ toast }}>
+    <ToastContext.Provider value={{ toast, success: (m: string) => toast(m, 'success'), error: (m: string) => toast(m, 'error') }}>
       {children}
       <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2">
         {toasts.map((t) => (

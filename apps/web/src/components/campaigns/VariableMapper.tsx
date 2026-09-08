@@ -32,8 +32,8 @@ export function VariableMapper({
   const bodyComp = components.find((c) => c.type === 'BODY');
 
   // Detect all variables in body like {{1}}, {{2}}, etc.
-  const bodyMatches = bodyComp?.text?.match(/\{\{(\d+)\}\}/g) || [];
-  const uniqueVarIndices = Array.from(new Set(bodyMatches.map((m) => m.replace(/[^0-9]/g, ''))));
+  const bodyMatches: string[] = (bodyComp?.text?.match(/\{\{(\d+)\}\}/g) || []) as string[];
+  const uniqueVarIndices: string[] = [...new Set(bodyMatches.map((m: string) => m.replace(/[^0-9]/g, '')))];
 
   return (
     <div className="space-y-4">

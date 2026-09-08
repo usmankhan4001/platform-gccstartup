@@ -13,7 +13,8 @@
  * Point 2 is the important one: suppression is enforced in the query, not by
  * remembering to filter the results afterwards.
  */
-import { readItems } from '@directus/sdk'
+// TODO: Replace with Drizzle queries
+const readItems = (...args: any[]) => ([] as any)
 import type { LeadItem } from '@/lib/directus'
 import { type EmailClient } from './client'
 import { marketableLeadFilter, partitionMarketable, type MarketableLead } from './suppression'

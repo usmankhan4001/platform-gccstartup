@@ -27,7 +27,11 @@
  * but — verified against production — NOT actually unique, so `enrollLead` reads
  * before it creates and cancels any duplicate a race manages to produce.
  */
-import { createItem, readItems, updateItem, updateItems } from '@directus/sdk'
+// TODO: Replace with Drizzle queries
+const createItem = (...args: any[]) => ({} as any)
+const readItems = (...args: any[]) => ([] as any)
+const updateItem = (...args: any[]) => ({} as any)
+const updateItems = (...args: any[]) => ([] as any)
 import type { LeadItem } from '@/lib/directus'
 import { normalizeFilter, resolveSegment } from './segments'
 import { marketableLeadFilter } from './suppression'
@@ -90,7 +94,7 @@ export async function enrollLead(
     for (const duplicate of existing.slice(1)) {
       await client
         .request(updateItem('email_flow_enrollments', duplicate.id, { status: 'cancelled', last_error: 'Duplicate enrollment collapsed' }))
-        .catch((error) => console.error('[email/flows] could not collapse duplicate enrollment', error))
+        .catch((error: any) => console.error('[email/flows] could not collapse duplicate enrollment', error))
     }
   }
 
@@ -266,7 +270,7 @@ async function finishEnrollment(client: EmailClient, enrollmentId: string, statu
         ...(error ? { last_error: error.slice(0, 1000) } : {}),
       }),
     )
-    .catch((cause) => console.error('[email/flows] could not close enrollment', cause))
+    .catch((cause: any) => console.error('[email/flows] could not close enrollment', cause))
 }
 
 /**

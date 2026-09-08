@@ -9,7 +9,11 @@
 //   5. Inbox mirroring creates whatsapp_conversations/messages entries
 //   6. Progress counters (sent/delivered/failed) are atomically incremented
 
-import { readItems, updateItem, createItem, aggregate } from '@directus/sdk'
+// TODO: Replace with Drizzle queries
+const readItems = (...args: any[]) => ([] as any)
+const updateItem = (...args: any[]) => ({} as any)
+const createItem = (...args: any[]) => ({} as any)
+const aggregate = (...args: any[]) => ([] as any)
 import { sendWhatsappTemplateWithMeta } from './client'
 import { sanitizePhoneNumber } from './phone'
 

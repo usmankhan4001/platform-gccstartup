@@ -8,8 +8,10 @@
  * When the shared Schema learns these collections, delete `EmailSchema` and this
  * cast — nothing else has to change.
  */
-import type { DirectusClient, RestClient } from '@directus/sdk'
-import { directus, type LeadItem, type Schema } from '@/lib/directus'
+// TODO: Replace with Drizzle queries
+type DirectusClient<T> = any
+type RestClient<T> = any
+import { directus, type LeadItem } from '@/lib/directus'
 
 export type EmailTemplateItem = {
   id: string
@@ -106,7 +108,7 @@ export type EmailSuppressionItem = {
   metadata?: Record<string, unknown> | null
 }
 
-export type EmailSchema = Schema & {
+export type EmailSchema = { [key: string]: any } & {
   email_templates: EmailTemplateItem[]
   email_campaigns: EmailCampaignItem[]
   email_segments: EmailSegmentItem[]

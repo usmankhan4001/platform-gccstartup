@@ -52,14 +52,14 @@ export async function dispatchWebhook(
       })
 
       if (response.ok) {
-        return { success: true, statusCode: response.status, attempts }
+        return { success: true, statusCode: response.status, attempts: attempt }
       }
 
       lastError = `HTTP ${response.status}: ${await response.text().catch(() => 'Unknown')}`
       
       // Don't retry on 4xx errors (except 429)
       if (response.status >= 400 && response.status < 500 && response.status !== 429) {
-        return { success: false, statusCode: response.status, error: lastError, attempts }
+        return { success: false, statusCode: response.status, error: lastError, attempts: attempt }
       }
     } catch (err) {
       lastError = err instanceof Error ? err.message : 'Network error'

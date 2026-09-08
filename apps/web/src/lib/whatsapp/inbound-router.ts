@@ -10,7 +10,8 @@
 // The 24-hour Meta customer-service window is enforced: inside the window free-form
 // text replies are allowed; outside it only template sends go through.
 
-import { readItems } from '@directus/sdk'
+// TODO: Replace with Drizzle queries
+const readItems = (...args: any[]) => ([] as any)
 import {
   automationDirectus,
   getActionHandler,

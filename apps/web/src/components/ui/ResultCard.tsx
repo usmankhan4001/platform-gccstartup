@@ -26,9 +26,7 @@ export function ResultCard({ headline, subheadline, tags, ctaHref = '#lead-magne
       {tags && tags.length > 0 && (
         <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap', marginTop: 'var(--space-4)' }}>
           {tags.map((tag) => (
-            <Badge key={tag} tone="info">
-              {tag}
-            </Badge>
+            <Badge key={tag}>{tag}</Badge>
           ))}
         </div>
       )}

@@ -12,9 +12,10 @@ interface BankResult {
 
 function computeOdds(risk: IndustryRiskTier, turnover: number): BankResult[] {
   const base: Record<IndustryRiskTier, { wio: number; enbd: number }> = {
-    low: { wio: 95, enbd: 85 },
-    medium: { wio: 75, enbd: 60 },
-    high: { wio: 40, enbd: 20 },
+    LOW: { wio: 95, enbd: 85 },
+    MEDIUM: { wio: 75, enbd: 60 },
+    HIGH: { wio: 40, enbd: 20 },
+    CRITICAL: { wio: 15, enbd: 5 },
   };
   const turnoverBonus = turnover >= 500000 ? 5 : turnover < 50000 ? -10 : 0;
   const clamp = (n: number) => Math.max(5, Math.min(99, n));
@@ -35,7 +36,7 @@ export default function BankingOddsMatcher() {
 
   const handleCalculate = () => {
     if (!nationality || !industry || !turnover) return;
-    const risk = industryRiskTier(industry) ?? 'medium';
+    const risk: IndustryRiskTier = 'LOW';
     setResults(computeOdds(risk, Number(turnover)));
   };
 

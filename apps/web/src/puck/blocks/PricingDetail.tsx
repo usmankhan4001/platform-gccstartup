@@ -51,7 +51,7 @@ export const PricingDetail: ComponentConfig<PricingDetailProps> = {
     <section className="section">
       <div className="wrap-narrow">
         <div className={`card${featured ? ' card-featured' : ''}`} style={{ textAlign: 'center', padding: 'var(--space-12)' }}>
-          {featured && <Badge tone="accent">Most popular</Badge>}
+          {featured && <Badge>Most popular</Badge>}
           <Eyebrow>{tierLabel}</Eyebrow>
           <h2>{name}</h2>
           {description && <p style={{ marginTop: 'var(--space-3)', color: 'var(--text-secondary)' }}>{description}</p>}
