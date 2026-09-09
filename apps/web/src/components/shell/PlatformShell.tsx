@@ -7,6 +7,8 @@ import { PlatformSidebar } from './PlatformSidebar'
 import { PlatformBreadcrumbs } from './PlatformBreadcrumbs'
 import { CommandPalette } from './CommandPalette'
 import { QuickCreateModal } from './QuickCreateModal'
+import { PwaProvider } from './PwaProvider'
+import { MobilePwaNav } from './MobilePwaNav'
 import { TooltipProvider } from '@/components/ui/Tooltip'
 import { ToastProvider } from '@/components/ui/ToastProvider'
 import { cn } from '@/lib/utils'
@@ -74,6 +76,9 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
             initialTab={quickCreateTab}
           />
 
+          {/* Service worker + install prompt (progressive enhancement) */}
+          <PwaProvider />
+
           {/* Top Platform Header (Standardized 56px Full Width) */}
           <PlatformHeader
             onOpenCommand={() => setCommandOpen(true)}
@@ -118,13 +123,18 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
               <main
                 className={cn(
                   'flex-1 overflow-y-auto bg-[var(--surface-alt)]',
-                  isFullHeightPage ? 'p-2 sm:p-3 lg:p-4 flex flex-col' : 'p-3 sm:p-5 lg:p-6'
+                  isFullHeightPage ? 'p-2 sm:p-3 lg:p-4 flex flex-col' : 'p-3 sm:p-5 lg:p-6',
+                  // Clear the fixed mobile tab bar so content is never hidden behind it.
+                  'pb-20 lg:pb-0'
                 )}
               >
                 {children}
               </main>
             </div>
           </div>
+
+          {/* Mobile bottom tab bar (PWA shell) */}
+          <MobilePwaNav onQuickCreate={() => handleOpenQuickCreate('deal')} />
         </div>
       </TooltipProvider>
     </ToastProvider>
