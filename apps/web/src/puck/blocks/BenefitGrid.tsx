@@ -29,7 +29,7 @@ export const BenefitGrid: ComponentConfig<BenefitGridProps> = {
     },
   },
   defaultProps: { eyebrow: '', title: '', accent: 'blue', benefits: [] },
-  render: ({ eyebrow, title, accent, benefits }) => (
+  render: ({ eyebrow, title, accent = 'blue', benefits = [] }) => (
     <section className="section">
       <div className="wrap">
         {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}
@@ -37,7 +37,7 @@ export const BenefitGrid: ComponentConfig<BenefitGridProps> = {
         <div style={{ marginTop: 'var(--space-12)' }}>
           <FeatureShowcase
             accent={accent}
-            items={benefits.map((b) => ({
+            items={(benefits || []).map((b) => ({
               title: b.title,
               desc: b.description || (b as { desc?: string }).desc || '',
               image: b.image,

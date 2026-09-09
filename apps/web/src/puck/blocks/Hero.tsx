@@ -65,11 +65,27 @@ export const Hero: ComponentConfig<HeroProps> = {
     image: DEFAULT_IMAGE,
   },
   render: (props) => {
-    const { eyebrow, title, titleHighlight, description, primaryCta, primaryCtaLink, secondaryCta, secondaryCtaLink, proofPoints, image, maxWidth } = props
-    const heroImage = image || DEFAULT_IMAGE
+    const eyebrow = props.eyebrow || '2026 REGULATORY COMPLIANT · DUBAI & RIYADH DESKS'
+    const title = props.title || (props as any).headline || 'Form Your UAE & Saudi Company in 72 Hours'
+    const titleHighlight = props.titleHighlight || '0% tax'
+    const description = props.description || (props as any).subhead || 'Direct government gateway for 0% Corporate Tax structuring, 100% foreign ownership, instant banking pre-approval, and annual compliance ledger.'
+    const primaryCta = props.primaryCta || (props as any).ctaText || 'Start Formation Quote'
+    const primaryCtaLink = props.primaryCtaLink || (props as any).ctaLink || '#lead-form'
+    const secondaryCta = props.secondaryCta || (props as any).secondaryCtaText || 'Speak on WhatsApp'
+    const secondaryCtaLink = props.secondaryCtaLink || (props as any).secondaryCtaLink || 'https://wa.me/971500000000'
+    const proofPointsRaw = props.proofPoints || (props as any).stats
+    const proofPoints = Array.isArray(proofPointsRaw) && proofPointsRaw.length > 0
+      ? proofPointsRaw.map((p: any) => ({ num: p.num || p.value || '', label: p.label || '' }))
+      : [
+          { num: '$140M+', label: 'Capital Protected' },
+          { num: '99.2%', label: 'Bank Approval Rate' },
+          { num: '72 Hours', label: 'License Delivery' },
+          { num: '0%', label: 'Corporate Tax QFZP' },
+        ]
+    const heroImage = props.image || DEFAULT_IMAGE
     const sectionStyle = getSectionStyle(props)
     const sectionClassName = getSectionClassName(props, 'hero-section')
-    const containerClass = getContainerClassName(maxWidth)
+    const containerClass = getContainerClassName(props.maxWidth)
 
     return (
       <div className={sectionClassName} style={sectionStyle}>
@@ -78,7 +94,7 @@ export const Hero: ComponentConfig<HeroProps> = {
             className={`${containerClass} reveal`}
             style={{
               padding: 'clamp(var(--space-10), 4vw, var(--space-16)) 0',
-              maxWidth: maxWidth === 'narrow' ? '780px' : maxWidth === 'full' ? '100%' : '900px',
+              maxWidth: props.maxWidth === 'narrow' ? '780px' : props.maxWidth === 'full' ? '100%' : '900px',
             }}
           >
             {eyebrow && <Eyebrow>{eyebrow}</Eyebrow>}

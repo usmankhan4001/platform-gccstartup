@@ -35,8 +35,8 @@ const rows: Array<[string, keyof (typeof cmpData)['uae']]> = [
 function Comparison({ eyebrow, title, description }: ComparisonToolProps) {
   const [a, setA] = useState('hongkong')
   const [b, setB] = useState('uae')
-  const dataA = cmpData[a]
-  const dataB = cmpData[b]
+  const dataA = cmpData[a] || cmpData['hongkong']
+  const dataB = cmpData[b] || cmpData['uae']
 
   return (
     <section className="section section-alt">

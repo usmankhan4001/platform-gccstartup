@@ -79,15 +79,21 @@ export const BentoGridBlock: ComponentConfig<BentoGridBlockProps> = {
       { icon: 'id-card', title: 'Tax Residency', desc: 'Certificate support for founders and staff.', href: '/services/tax-residency', tint: 'none' },
     ],
   },
-  render: ({ eyebrow, title, featured, items }) => {
-    const FeaturedIcon = ICONS[featured.icon] ?? Briefcase
+  render: ({ eyebrow = 'Strategic Advantages', title = 'Why Global Founders Structure with GCC Startup', featured, items = [] }) => {
+    const feat = featured || {
+      icon: 'Shield',
+      title: 'Direct Government Desk & Fast-Track Processing',
+      desc: 'Direct integration with Dubai, Abu Dhabi, and Riyadh registries guarantees zero delays.',
+      href: '/services',
+    }
+    const FeaturedIcon = ICONS[feat.icon] ?? Briefcase
     const featuredItem: BentoItem = {
       icon: <FeaturedIcon size={24} strokeWidth={1.6} />,
-      title: featured.title,
-      desc: featured.desc,
-      href: featured.href,
+      title: feat.title,
+      desc: feat.desc,
+      href: feat.href,
     }
-    const gridItems: BentoItem[] = items.map((it) => {
+    const gridItems: BentoItem[] = (items || []).map((it) => {
       const Icon = ICONS[it.icon] ?? Briefcase
       return {
         icon: <Icon size={24} strokeWidth={1.6} />,

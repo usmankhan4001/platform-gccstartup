@@ -40,7 +40,13 @@ export const GlobalCta: ComponentConfig<GlobalCtaProps> = {
     secondaryLink: 'https://wa.me/447868762416',
   },
   render: (props) => {
-    const { headline, subhead, primaryBtn, primaryLink, secondaryBtn, secondaryLink, maxWidth } = props
+    const headline = props.headline || 'Ready to Launch Your GCC Entity?'
+    const subhead = props.subhead || 'Join 1,200+ international businesses structured for 0% tax efficiency in the UAE and Saudi Arabia.'
+    const primaryBtn = props.primaryBtn || (props as any).buttonText || 'Schedule Advisor Call'
+    const primaryLink = props.primaryLink || (props as any).buttonLink || '#lead-form'
+    const secondaryBtn = props.secondaryBtn || 'WhatsApp Us'
+    const secondaryLink = props.secondaryLink || 'https://wa.me/971500000000'
+    const maxWidth = props.maxWidth
     const sectionClass = getSectionClassName(props, 'section reveal')
     const sectionStyle = getSectionStyle(props, { textAlign: 'center' })
     const containerClass = getContainerClassName(maxWidth ?? 'narrow')

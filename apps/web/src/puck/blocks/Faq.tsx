@@ -69,12 +69,33 @@ export const Faq: ComponentConfig<FaqProps> = {
     const sectionStyle = getSectionStyle(props)
     const containerClass = getContainerClassName(maxWidth)
 
+    const list = Array.isArray(faqs) && faqs.length > 0
+      ? faqs
+      : [
+          {
+            q: 'Can foreign nationals own 100% of a UAE or Saudi company?',
+            a: 'Yes. Both UAE Freezones and Mainland commercial entities now allow 100% foreign ownership with zero requirement for a local Emirati partner or nominee. Saudi Arabia also permits 100% foreign ownership via the MISA investment program.',
+          },
+          {
+            q: 'How does the 0% UAE Corporate Tax (QFZP) regime work?',
+            a: 'Under UAE Corporate Tax Law, Qualifying Free Zone Persons (QFZPs) that conduct qualifying activities, maintain adequate economic substance, and do not exceed the de minimis non-qualifying revenue threshold are taxed at an effective 0% corporate tax rate.',
+          },
+          {
+            q: 'How long does it take to open a corporate bank account?',
+            a: 'Digital business accounts (such as Wio Bank) are typically approved and operational within 48 to 72 hours. Tier-1 conventional accounts (Emirates NBD, Mashreq, FAB) take 7 to 14 business days with our direct relationship manager pre-approval.',
+          },
+          {
+            q: 'Do I need to visit Dubai or Riyadh to start my company?',
+            a: 'Initial security clearance, name reservation, and trade license issuance are 100% digital with no travel required. A brief 1-day visit is only required later for residency visa medical typing and biometrics.',
+          },
+        ]
+
     return (
       <section className={sectionClass} style={sectionStyle} id="faq">
         <div className={`${containerClass} grid-2-split-rev`}>
           <div className="reveal">
             <Eyebrow>Questions</Eyebrow>
-            <h2>{title}</h2>
+            <h2>{title || 'Frequently Asked Questions'}</h2>
             <div className="card" style={{ marginTop: 'var(--space-8)' }}>
               <h4>{contactTitle}</h4>
               <p style={{ marginTop: 'var(--space-2)' }}>{contactDescription}</p>
@@ -86,7 +107,7 @@ export const Faq: ComponentConfig<FaqProps> = {
             </div>
           </div>
           <div className="reveal">
-            {faqs?.map((f, i) => (
+            {list.map((f, i) => (
               <FaqItem key={i} q={f.q} a={f.a} />
             ))}
           </div>

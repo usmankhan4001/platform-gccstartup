@@ -26,11 +26,11 @@ function CostEstimator({ eyebrow, title }: InteractiveToolsProps) {
   const [banks, setBanks] = useState(1)
   const [residency, setResidency] = useState(false)
 
-  const c = estData[country]
-  const t = tierAdd[tier]
+  const c = estData[country] || estData['uae']
+  const t = tierAdd[tier] || tierAdd['standard']
   const res = residency ? 1000 : 0
-  const lo = c.base[0] + t[0] + banks * 500 + res
-  const hi = c.base[1] + t[1] + banks * 500 + res
+  const lo = (c?.base?.[0] || 4200) + (t?.[0] || 0) + banks * 500 + res
+  const hi = (c?.base?.[1] || 4200) + (t?.[1] || 0) + banks * 500 + res
 
   return (
     <section className="section" id="tools">
