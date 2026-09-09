@@ -13,6 +13,8 @@ import { createMediaPickerField } from '@/components/admin/MediaPickerModal'
 export type HeroProps = {
   eyebrow: string
   title: string
+  /** A phrase from `title` to underline with the hand-drawn accent stroke. Leave
+   * blank for a plain headline; an unmatched phrase is simply ignored. */
   titleHighlight: string
   description: string
   primaryCta: string

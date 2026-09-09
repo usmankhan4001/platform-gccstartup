@@ -6,6 +6,8 @@ export type JurisdictionsGridProps = {
   title: string
   description: string
   jurisdictions: Array<{
+    /** ISO 3166-1 alpha-2 country code (e.g. "ae", "hk") — rendered via flagcdn.com,
+     * not an emoji, so it renders crisply and consistently everywhere. */
     flagCode: string
     name: string
     rate: string

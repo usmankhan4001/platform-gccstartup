@@ -54,7 +54,7 @@ export const PricingCards: ComponentConfig<PricingCardsProps> = {
               key={i}
               style={{ ['--tile-accent' as string]: 'var(--blue)', ['--tile-accent-lt' as string]: 'var(--blue-lt)' }}
             >
-              {t.featured && <Badge>Most popular</Badge>}
+              {t.featured && <Badge tone="accent">Most popular</Badge>}
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-tertiary)', marginTop: 'var(--space-2)' }}>{t.label}</div>
               <h3 style={{ marginTop: 'var(--space-1)' }}>{t.name}</h3>
               <p style={{ marginTop: 'var(--space-2)' }}>{t.description}</p>

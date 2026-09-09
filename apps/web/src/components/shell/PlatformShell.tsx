@@ -8,6 +8,7 @@ import { PlatformBreadcrumbs } from './PlatformBreadcrumbs'
 import { CommandPalette } from './CommandPalette'
 import { QuickCreateModal } from './QuickCreateModal'
 import { TooltipProvider } from '@/components/ui/Tooltip'
+import { ToastProvider } from '@/components/ui/ToastProvider'
 import { cn } from '@/lib/utils'
 
 export function PlatformShell({ children }: { children: React.ReactNode }) {
@@ -56,50 +57,24 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
   const isFullHeightPage = pathname.startsWith('/crm/inbox')
 
   return (
-    <TooltipProvider delayDuration={150}>
-      <div className="flex h-screen w-screen overflow-hidden bg-[var(--surface-alt)] font-sans antialiased text-[var(--text)]">
-        {/* Universal Command Palette (Cmd+K / Ctrl+K) */}
-        <CommandPalette
-          open={commandOpen}
-          onOpenChange={setCommandOpen}
-          onOpenQuickCreate={handleOpenQuickCreate}
-        />
-
-        {/* Quick Create Modal ('C' Shortcut) */}
-        <QuickCreateModal
-          open={quickCreateOpen}
-          onOpenChange={setQuickCreateOpen}
-          initialTab={quickCreateTab}
-        />
-
-        {/* Desktop Sidebar (Collapsible) */}
-        <div className="hidden lg:flex shrink-0">
-          <PlatformSidebar
-            isCollapsed={isCollapsed}
-            onToggleCollapse={handleToggleCollapse}
+    <ToastProvider>
+      <TooltipProvider delayDuration={150}>
+        <div className="flex h-screen w-screen flex-col overflow-hidden bg-[var(--surface-alt)] font-sans antialiased text-[var(--text)]">
+          {/* Universal Command Palette (Cmd+K / Ctrl+K) */}
+          <CommandPalette
+            open={commandOpen}
+            onOpenChange={setCommandOpen}
+            onOpenQuickCreate={handleOpenQuickCreate}
           />
-        </div>
 
-        {/* Mobile Sidebar Overlay Drawer */}
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 flex lg:hidden">
-            <div
-              className="fixed inset-0 bg-[#0A142F]/60 backdrop-blur-xs transition-opacity animate-in fade-in"
-              onClick={() => setMobileOpen(false)}
-            />
-            <div className="relative flex w-72 max-w-[80vw] flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-200">
-              <PlatformSidebar
-                isCollapsed={false}
-                onToggleCollapse={() => setMobileOpen(false)}
-                onCloseMobile={() => setMobileOpen(false)}
-              />
-            </div>
-          </div>
-        )}
+          {/* Quick Create Modal ('C' Shortcut) */}
+          <QuickCreateModal
+            open={quickCreateOpen}
+            onOpenChange={setQuickCreateOpen}
+            initialTab={quickCreateTab}
+          />
 
-        {/* Main Application Column */}
-        <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-          {/* Top Platform Header (Standardized 56px) */}
+          {/* Top Platform Header (Standardized 56px Full Width) */}
           <PlatformHeader
             onOpenCommand={() => setCommandOpen(true)}
             onOpenQuickCreate={handleOpenQuickCreate}
@@ -107,20 +82,51 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
             isSidebarOpen={mobileOpen}
           />
 
-          {/* Breadcrumbs Ribbon */}
-          <PlatformBreadcrumbs />
+          {/* Body: Sidebar + Main Content */}
+          <div className="flex flex-1 overflow-hidden min-h-0">
+            {/* Desktop Sidebar (Collapsible) */}
+            <div className="hidden lg:flex shrink-0">
+              <PlatformSidebar
+                isCollapsed={isCollapsed}
+                onToggleCollapse={handleToggleCollapse}
+              />
+            </div>
 
-          {/* Main Scrollable Viewport */}
-          <main
-            className={cn(
-              'flex-1 overflow-y-auto bg-[var(--surface-alt)]',
-              isFullHeightPage ? 'p-2 sm:p-3 lg:p-4 flex flex-col' : 'p-3 sm:p-5 lg:p-6'
+            {/* Mobile Sidebar Overlay Drawer */}
+            {mobileOpen && (
+              <div className="fixed inset-0 z-50 flex lg:hidden">
+                <div
+                  className="fixed inset-0 bg-[#0A142F]/60 backdrop-blur-xs transition-opacity animate-in fade-in"
+                  onClick={() => setMobileOpen(false)}
+                />
+                <div className="relative flex w-72 max-w-[80vw] flex-col bg-white shadow-2xl animate-in slide-in-from-left duration-200">
+                  <PlatformSidebar
+                    isCollapsed={false}
+                    onToggleCollapse={() => setMobileOpen(false)}
+                    onCloseMobile={() => setMobileOpen(false)}
+                  />
+                </div>
+              </div>
             )}
-          >
-            {children}
-          </main>
+
+            {/* Main Application Area */}
+            <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+              {/* Breadcrumbs Ribbon */}
+              <PlatformBreadcrumbs />
+
+              {/* Main Scrollable Viewport */}
+              <main
+                className={cn(
+                  'flex-1 overflow-y-auto bg-[var(--surface-alt)]',
+                  isFullHeightPage ? 'p-2 sm:p-3 lg:p-4 flex flex-col' : 'p-3 sm:p-5 lg:p-6'
+                )}
+              >
+                {children}
+              </main>
+            </div>
+          </div>
         </div>
-      </div>
-    </TooltipProvider>
+      </TooltipProvider>
+    </ToastProvider>
   )
 }

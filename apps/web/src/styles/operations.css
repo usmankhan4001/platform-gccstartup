@@ -1,0 +1,135 @@
+.ops-filter-bar {
+  display: flex;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-alt);
+  flex-wrap: wrap;
+}
+
+.ops-filter-bar .field {
+  margin: 0;
+  min-width: 180px;
+  flex: 1;
+}
+
+.ops-filter-bar .field input,
+.ops-filter-bar .field select {
+  width: 100%;
+}
+
+.ops-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+
+.ops-form-grid .field {
+  margin: 0;
+}
+
+.ops-form-grid .ops-span-full {
+  grid-column: 1 / -1;
+}
+
+.ops-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  grid-column: 1 / -1;
+  padding: var(--space-2) 0;
+}
+
+.ops-tabs {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  background: var(--surface-alt);
+  margin-bottom: var(--space-5);
+}
+
+.ops-tab {
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 8px 16px;
+}
+
+.ops-tab.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.ops-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+  border-top: 1px solid var(--border);
+  color: var(--text-tertiary);
+  font-size: 13px;
+}
+
+.ops-pagination-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.ops-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.ops-error-text {
+  color: #B91C1C;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 360px;
+  margin-top: 4px;
+}
+
+.ops-privacy-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-tertiary);
+  font-size: 13px;
+  margin: calc(var(--space-5) * -1) 0 var(--space-5);
+}
+
+@media (max-width: 900px) {
+  .ops-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ops-form-grid .ops-span-full,
+  .ops-checkbox-row {
+    grid-column: 1;
+  }
+
+  .ops-filter-bar {
+    align-items: stretch;
+    padding: var(--space-4);
+  }
+
+  .ops-filter-bar .field,
+  .ops-filter-bar .btn {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .ops-pagination {
+    padding: var(--space-4);
+  }
+}

@@ -1,237 +1,128 @@
-'use client'
-
-import React, { useState } from 'react'
+import type { Metadata } from 'next'
 import Link from 'next/link'
-import {
-  Building2,
-  Globe,
-  ArrowRight,
-  ShieldCheck,
-  Landmark,
-  Scale,
-  Users,
-  CheckCircle2,
-} from 'lucide-react'
-import { ButtonLink, Flag } from '@/components/ui'
-import { COUNTRY_FLAG_CODE } from '@/lib/flag-codes'
+import { ArrowRight } from 'lucide-react'
+import { getSiteSettings } from '@/lib/directus'
+import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 
-const JURISDICTIONS = [
-  {
-    slug: 'uae',
-    name: 'United Arab Emirates (UAE)',
-    flag: COUNTRY_FLAG_CODE.uae,
-    region: 'GCC',
-    capital: 'Abu Dhabi / Dubai',
-    taxRate: '0% - 9%',
-    personalTax: '0%',
-    timeline: '3 - 5 Days',
-    minCapital: 'No paid-up capital required',
-    ownership: '100% Foreign Ownership',
-    description: 'The premier global destination for tech founders, e-commerce, digital nomads, and scaleups. Benefit from 0% personal income tax and Qualifying Free Zone corporate tax regimes.',
-    authorities: ['IFZA Dubai', 'Meydan Free Zone', 'RAKEZ', 'DAFZA', 'DMCC', 'Dubai DED Mainland'],
-    recommended: true,
-  },
-  {
-    slug: 'ksa',
-    name: 'Kingdom of Saudi Arabia (KSA)',
-    flag: COUNTRY_FLAG_CODE.bahrain,
-    region: 'GCC',
-    capital: 'Riyadh',
-    taxRate: '20% (0% for RHQ 30y)',
-    personalTax: '0%',
-    timeline: '10 - 15 Days',
-    minCapital: 'SAR 500,000 (standard LLC)',
-    ownership: '100% via MISA License',
-    description: 'The largest economy in the MENA region. Vision 2030 initiatives offer 30-year 0% corporate tax exemptions for Regional Headquarters (RHQ) and massive government procurement access.',
-    authorities: ['Ministry of Investment (MISA)', 'Ministry of Commerce (MC)', 'ZATCA Tax Authority'],
-    recommended: true,
-  },
-  {
-    slug: 'qatar',
-    name: 'Qatar Financial Centre (QFC)',
-    flag: COUNTRY_FLAG_CODE.qatar,
-    region: 'GCC',
-    capital: 'Doha',
-    taxRate: '10% Flat',
-    personalTax: '0%',
-    timeline: '7 - 10 Days',
-    minCapital: 'USD 0 (services)',
-    ownership: '100% Foreign Ownership',
-    description: 'A world-class commercial and financial hub offering 100% foreign equity, full profit repatriation, and direct access to Qatar’s high-liquidity sovereign wealth ecosystem.',
-    authorities: ['QFC Authority', 'Qatar Central Bank', 'Ministry of Commerce & Industry'],
-    recommended: false,
-  },
-  {
-    slug: 'oman',
-    name: 'Sultanate of Oman',
-    flag: COUNTRY_FLAG_CODE.oman,
-    region: 'GCC',
-    capital: 'Muscat',
-    taxRate: '15% Flat',
-    personalTax: '0%',
-    timeline: '5 - 7 Days',
-    minCapital: 'OMR 0 (Foreign Capital Investment Law)',
-    ownership: '100% Foreign Ownership',
-    description: 'Strategic Indian Ocean trade gateway with progressive 100% foreign ownership laws and zero personal income tax.',
-    authorities: ['Sohar Freezone', 'Salalah Freezone', 'MOCIIP Oman'],
-    recommended: false,
-  },
-  {
-    slug: 'singapore',
-    name: 'Singapore (ACRA)',
-    flag: COUNTRY_FLAG_CODE.singapore,
-    region: 'APAC',
-    capital: 'Singapore',
-    taxRate: '17% (Startup Exemptions)',
-    personalTax: '0% - 24%',
-    timeline: '3 - 5 Days',
-    minCapital: 'SGD 1',
-    ownership: '100% (Requires Local Nominee Director)',
-    description: 'The institutional venture capital and holding capital of Asia. High reputation, rigorous common law legal framework, and 90+ double taxation treaties.',
-    authorities: ['ACRA', 'Inland Revenue Authority (IRAS)', 'MAS'],
-    recommended: false,
-  },
-  {
-    slug: 'hongkong',
-    name: 'Hong Kong (Offshore)',
-    flag: COUNTRY_FLAG_CODE.hongkong,
-    region: 'APAC',
-    capital: 'Hong Kong',
-    taxRate: '8.25% - 16.5% (0% Foreign)',
-    personalTax: '15% Flat',
-    timeline: '5 - 7 Days',
-    minCapital: 'HKD 1',
-    ownership: '100% Foreign Ownership',
-    description: 'Territorial tax system where foreign-sourced profits are taxed at 0%. Immediate gateway to Greater Bay Area manufacturing and multi-currency global banking.',
-    authorities: ['Companies Registry', 'Inland Revenue Department (IRD)'],
-    recommended: false,
-  },
+export const metadata: Metadata = {
+  title: 'Compare Company Formation Jurisdictions',
+  description: 'Compare 15+ company formation jurisdictions: UAE, Bahrain, Hong Kong, Singapore, Ireland, BVI & Cayman on corporate tax, setup speed, banking & cost.',
+  alternates: { canonical: '/jurisdictions' },
+}
+
+const criteria = [
+  ['01', 'Owner and residency position', 'Where owners live and manage the company can matter as much as where the entity is incorporated.'],
+  ['02', 'Customer and payment flows', 'Markets, currencies, payment processors, and counterparties influence practical jurisdiction fit.'],
+  ['03', 'Banking and KYC readiness', 'Bank appetite depends on activity, ownership, substance, expected transactions, and supporting evidence.'],
+  ['04', 'Tax and reporting context', 'Headline rates are only one factor; substance, management, treaties, and filings need case-specific review.'],
+  ['05', 'Setup and recurring cost', 'Compare the complete first-year and annual operating cost, not registration in isolation.'],
+  ['06', 'Timing and maintenance', 'Formation speed matters, but so do renewals, accounting, audit, filings, and local requirements.'],
 ]
 
-export default function JurisdictionsPage() {
-  const [selectedRegion, setSelectedRegion] = useState<'ALL' | 'GCC' | 'APAC'>('ALL')
+const DEFAULT_JURISDICTIONS = [
+  { id: 'uae', name: 'United Arab Emirates', slug: 'uae', flag: '🇦🇪', region: 'Middle East', tax: '0% QFZP / 9%', timeline: '48–72 Hours', from_price: '$4,800', headline: 'The global standard for 0% tax structuring and fintech.', intro: 'UAE Freezones offer 100% foreign ownership, 0% personal tax, and zero capital repatriation restrictions.' },
+  { id: 'saudi-arabia', name: 'Saudi Arabia', slug: 'saudi-arabia', flag: '🇸🇦', region: 'Middle East', tax: '20% Corporate / 0% Personal', timeline: '5–7 Days', from_price: '$8,500', headline: 'The largest economy in the GCC with massive Vision 2030 scale.', intro: 'Access government tenders, regional headquarters (RHQ) tax incentives, and the largest domestic market.' },
+  { id: 'bahrain', name: 'Bahrain', slug: 'bahrain', flag: '🇧🇭', region: 'Middle East', tax: '0% Corporate', timeline: '3–5 Days', from_price: '$4,200', headline: 'Cost-effective gateway with 0% corporate tax and direct Saudi causeway access.', intro: 'Low operating overhead, 100% foreign ownership in most activities, and fast-track banking.' },
+  { id: 'oman', name: 'Oman', slug: 'oman', flag: '🇴🇲', region: 'Middle East', tax: '15% / Freezone 0%', timeline: '4–6 Days', from_price: '$4,900', headline: 'Strategic maritime logistics hub with US-Oman Free Trade Agreement.', intro: 'Direct access to Indian Ocean trade corridors and dedicated Special Economic Zones.' },
+  { id: 'qatar', name: 'Qatar', slug: 'qatar', flag: '🇶🇦', region: 'Middle East', tax: '10% / QFC 0%', timeline: '5–7 Days', from_price: '$6,800', headline: 'Ultra-high purchasing power market anchored by Qatar Financial Centre.', intro: 'World-class legal infrastructure based on English Common Law in the QFC.' },
+  { id: 'singapore', name: 'Singapore', slug: 'singapore', flag: '🇸🇬', region: 'Asia Pacific', tax: '17% (Partial Exemption)', timeline: '1–2 Days', from_price: '$3,800', headline: 'Asia’s premier financial hub with strong double-tax treaty network.', intro: 'Unrivaled global banking reputation and startup venture capital ecosystem.' },
+  { id: 'hongkong', name: 'Hong Kong', slug: 'hongkong', flag: '🇭🇰', region: 'Asia Pacific', tax: '8.25% / 16.5% (Territorial 0%)', timeline: '2–3 Days', from_price: '$3,200', headline: 'Premier gateway for global trading, ecommerce, and China connectivity.', intro: 'Territorial tax system where offshore profits are exempt from Hong Kong tax.' },
+]
 
-  const filtered = JURISDICTIONS.filter(
-    (j) => selectedRegion === 'ALL' || j.region === selectedRegion
-  )
+export default async function JurisdictionsHubPage() {
+  const settings = await getSiteSettings()
+  const countries = DEFAULT_JURISDICTIONS
+  const canonicalUrl = `${(settings.site_url || 'https://gccstartup.com').replace(/\/$/, '')}/jurisdictions`
 
   return (
-    <div className="bg-white text-[#0F172A] py-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <span className="text-xs font-black uppercase tracking-wider text-[#1B4FD8] bg-[#EFF6FF] px-3 py-1 rounded-full border border-blue-200">
-            Global Jurisdictions
-          </span>
-          <h1 className="mt-3 text-4xl sm:text-5xl font-black text-[#0A142F] tracking-tight">
-            GCC &amp; International Formation Guides
-          </h1>
-          <p className="mt-3 text-[#334155] text-base">
-            Detailed regulatory requirements, corporate tax rates, paid-up capital rules, and authorized registry procedures.
-          </p>
+    <HubPage>
+      <HubHero
+        eyebrow="Jurisdictions"
+        title="Choose where the company works, not just where it is cheap."
+        description="Compare jurisdictions through the realities that affect founders after incorporation: management, banking, tax context, customer access, credibility, and annual maintenance."
+        activeStage="jurisdiction"
+        secondaryHref="/services"
+        secondaryLabel="Explore formation services"
+        canonicalUrl={canonicalUrl}
+      />
 
-          {/* Region Tabs */}
-          <div className="mt-8 inline-flex p-1.5 rounded-2xl bg-[#F1F5F9] border border-[#E2E8F0]">
-            {(['ALL', 'GCC', 'APAC'] as const).map((reg) => (
-              <button
-                key={reg}
-                type="button"
-                onClick={() => setSelectedRegion(reg)}
-                className={`px-6 py-2 rounded-xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer ${
-                  selectedRegion === reg
-                    ? 'bg-white text-[#0A142F] shadow-sm'
-                    : 'text-[#64748B] hover:text-[#0A142F]'
-                }`}
-              >
-                {reg === 'ALL' ? 'All Jurisdictions' : reg}
-              </button>
+      <section className={styles.section} aria-labelledby="jurisdictions-list-title">
+        <div className="wrap">
+          <SectionHeader
+            eyebrow="Available options"
+            title="Active jurisdictions supported by our team."
+            description="Explore tax regimes, setup speed, minimum requirements, and formation structures across the GCC, Asia, and Europe."
+            id="jurisdictions-list-title"
+          />
+
+          <div className={styles.grid}>
+            {countries.map((country: any) => (
+              <article key={country.id} className={styles.countryCard}>
+                <div className={styles.countryHeader}>
+                  <div className={styles.flagBadge}>
+                    <span style={{ fontSize: 24 }}>{country.flag}</span>
+                    <div>
+                      <h3>{country.name}</h3>
+                      <span className={styles.region}>{country.region}</span>
+                    </div>
+                  </div>
+                  {country.from_price && <span className={styles.priceTag}>from {country.from_price}</span>}
+                </div>
+
+                <div className={styles.metrics}>
+                  <div className={styles.metric}>
+                    <span>Tax Regime</span>
+                    <strong>{country.tax || 'Case-specific'}</strong>
+                  </div>
+                  <div className={styles.metric}>
+                    <span>Turnaround</span>
+                    <strong>{country.timeline || 'Fast-track'}</strong>
+                  </div>
+                </div>
+
+                <p className={styles.countryIntro}>{country.headline || country.intro}</p>
+
+                <div className={styles.cardFooter}>
+                  <Link href={`/${country.slug}`} className={styles.arrowLink}>
+                    <span>View jurisdiction guide</span>
+                    <ArrowRight size={16} aria-hidden />
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
         </div>
+      </section>
 
-        {/* Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-20">
-          {filtered.map((j) => (
-            <div
-              key={j.slug}
-              className="bg-[#F8FAFC] border border-[#E2E8F0] hover:border-[#F26522] rounded-3xl p-8 shadow-xs hover:shadow-2xl transition-all flex flex-col justify-between"
-            >
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Flag code={j.flag} size="md" />
-                    <div>
-                      <h3 className="text-xl font-bold text-[#0A142F]">{j.name}</h3>
-                      <span className="text-xs font-semibold text-[#64748B]">{j.capital}</span>
-                    </div>
-                  </div>
-                  {j.recommended && (
-                    <span className="px-2.5 py-0.5 rounded-md text-[10px] font-extrabold uppercase bg-[#FEF1E9] text-[#F26522]">
-                      Recommended
-                    </span>
-                  )}
-                </div>
+      <section className={styles.sectionAlt} aria-labelledby="criteria-title">
+        <div className="wrap">
+          <SectionHeader
+            eyebrow="Evaluation framework"
+            title="Six factors that determine jurisdiction fit."
+            description="We review client requirements against operational realities before recommending a registration route."
+            id="criteria-title"
+          />
 
-                <p className="text-xs text-[#334155] leading-relaxed mb-6">
-                  {j.description}
-                </p>
-
-                {/* Key Metrics Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs bg-white p-4 rounded-2xl border border-[#E2E8F0] mb-6">
-                  <div>
-                    <span className="text-[10px] font-semibold text-[#64748B] block">Corporate Tax</span>
-                    <span className="font-extrabold text-emerald-600">{j.taxRate}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-semibold text-[#64748B] block">Personal Tax</span>
-                    <span className="font-extrabold text-[#0A142F]">{j.personalTax}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-semibold text-[#64748B] block">Turnaround</span>
-                    <span className="font-bold text-[#0A142F]">{j.timeline}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-semibold text-[#64748B] block">Ownership</span>
-                    <span className="font-bold text-[#1B4FD8]">100% Foreign</span>
-                  </div>
-                </div>
-
-                {/* Authorities */}
-                <div>
-                  <span className="text-[11px] font-bold text-[#64748B] block mb-2">
-                    Key Licensing Authorities &amp; Registries:
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {j.authorities.map((auth) => (
-                      <span
-                        key={auth}
-                        className="px-2 py-1 rounded-md bg-white border border-[#E2E8F0] text-[11px] font-medium text-[#334155]"
-                      >
-                        {auth}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+          <div className={styles.criteriaGrid}>
+            {criteria.map(([num, title, text]) => (
+              <div key={num} className={styles.criteriaCard}>
+                <span className={styles.criteriaNum}>{num}</span>
+                <h4>{title}</h4>
+                <p>{text}</p>
               </div>
-
-              <div className="mt-8 pt-6 border-t border-[#E2E8F0] flex items-center justify-between">
-                <Link
-                  href={`/tools/tax-calculator`}
-                  className="text-xs font-bold text-[#1B4FD8] hover:underline flex items-center gap-1"
-                >
-                  Calculate Tax in {j.name.split(' ')[0]} →
-                </Link>
-                <Link
-                  href="/#lead-form"
-                  className="px-4 py-2 rounded-xl bg-[#0A142F] hover:bg-[#1039AC] text-white text-xs font-bold transition-colors"
-                >
-                  Inquire Setup
-                </Link>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <ConversionBand
+        title="Need guidance comparing two jurisdictions?"
+        description="Share your business model, customer locations, and banking requirements. Our senior advisors will map the optimal structure."
+        primaryHref="/#lead-form"
+        primaryLabel="Request a structure review"
+        secondaryHref="/compare"
+        secondaryLabel="View comparison matrix"
+      />
+    </HubPage>
   )
 }

@@ -35,14 +35,26 @@ export function HubHero({
   activeStage: RouteStage
   primaryHref?: string
   primaryLabel?: string
-  secondaryHref: string
-  secondaryLabel: string
+  secondaryHref?: string
+  secondaryLabel?: string
   canonicalUrl: string
 }) {
   return (
     <header className={styles.hero}>
       <WebPageJsonLd title={title} description={description} url={canonicalUrl} />
-      <BreadcrumbJsonLd items={[{ name: 'Home', url: canonicalUrl.replace(/\/(services|jurisdictions|pricing|resources|contact|book-consultation)\/?$/, '') || canonicalUrl }, { name: eyebrow, url: canonicalUrl }]} />
+      <BreadcrumbJsonLd
+        items={[
+          {
+            name: 'Home',
+            url:
+              canonicalUrl.replace(
+                /\/(services|jurisdictions|pricing|resources|contact|book-consultation)\/?$/,
+                ''
+              ) || canonicalUrl,
+          },
+          { name: eyebrow, url: canonicalUrl },
+        ]}
+      />
       <div className="wrap">
         <nav className={styles.breadcrumbs} aria-label="Breadcrumb">
           <Link href="/">Home</Link>
@@ -51,20 +63,35 @@ export function HubHero({
         </nav>
         <div className={styles.heroGrid}>
           <div className={styles.heroCopy}>
-            <span className="eyebrow" style={{ color: 'color-mix(in srgb, var(--white) 66%, transparent)' }}>{eyebrow}</span>
+            <span className="eyebrow" style={{ color: 'color-mix(in srgb, var(--white) 66%, transparent)' }}>
+              {eyebrow}
+            </span>
             <h1>{title}</h1>
             <p className={styles.heroLead}>{description}</p>
             <div className={styles.heroActions}>
-              <Link href={primaryHref} className="btn btn-primary">{primaryLabel} <ArrowRight size={17} aria-hidden="true" /></Link>
-              <Link href={secondaryHref} className={styles.secondaryAction}>{secondaryLabel}</Link>
+              <Link href={primaryHref} className="btn btn-primary">
+                {primaryLabel} <ArrowRight size={17} aria-hidden="true" />
+              </Link>
+              {secondaryHref && secondaryLabel && (
+                <Link href={secondaryHref} className={styles.secondaryAction}>
+                  {secondaryLabel}
+                </Link>
+              )}
             </div>
           </div>
           <div className={styles.routeMap} aria-label="Company formation decision route">
             <p className={styles.routeLabel}>Your formation route</p>
             {stages.map((stage, index) => (
-              <div key={stage.id} className={`${styles.routeStep} ${stage.id === activeStage ? styles.routeStepActive : ''}`}>
+              <div
+                key={stage.id}
+                className={`${styles.routeStep} ${stage.id === activeStage ? styles.routeStepActive : ''}`}
+              >
                 <span className={styles.routeDot}>{String(index + 1).padStart(2, '0')}</span>
-                <span><strong>{stage.label}</strong><br />{stage.note}</span>
+                <span>
+                  <strong>{stage.label}</strong>
+                  <br />
+                  {stage.note}
+                </span>
               </div>
             ))}
           </div>
@@ -74,31 +101,70 @@ export function HubHero({
   )
 }
 
-export function SectionHeader({ eyebrow, title, description, titleId }: { eyebrow: string; title: string; description: string; titleId?: string }) {
+export function SectionHeader({
+  eyebrow,
+  title,
+  description,
+  titleId,
+  id,
+}: {
+  eyebrow: string
+  title: string
+  description: string
+  titleId?: string
+  id?: string
+}) {
   return (
     <div className={styles.sectionHeader}>
       <div>
         <span className="eyebrow">{eyebrow}</span>
-        <h2 id={titleId}>{title}</h2>
+        <h2 id={titleId || id}>{title}</h2>
       </div>
       <p>{description}</p>
     </div>
   )
 }
 
-export function EmptyState({ title, description, href = '/book-consultation' }: { title: string; description: string; href?: string }) {
+export function EmptyState({
+  title,
+  description,
+  href = '/book-consultation',
+}: {
+  title: string
+  description: string
+  href?: string
+}) {
   return (
     <div className={styles.empty}>
       <h3>{title}</h3>
       <p>{description}</p>
       <div className={styles.sectionActions} style={{ justifyContent: 'center' }}>
-        <Link href={href} className="btn btn-outline">Ask a specialist</Link>
+        <Link href={href} className="btn btn-outline">
+          Ask a specialist
+        </Link>
       </div>
     </div>
   )
 }
 
-export function ConversionBand({ title, description, label = 'Request a consultation' }: { title: string; description: string; label?: string }) {
+export function ConversionBand({
+  title,
+  description,
+  label = 'Request a consultation',
+  primaryHref = '/#lead-form',
+  primaryLabel,
+  secondaryHref,
+  secondaryLabel,
+}: {
+  title: string
+  description: string
+  label?: string
+  primaryHref?: string
+  primaryLabel?: string
+  secondaryHref?: string
+  secondaryLabel?: string
+}) {
+  const pLabel = primaryLabel || label
   return (
     <section className={styles.conversion} aria-labelledby="hub-conversion-title">
       <div className="wrap">
@@ -107,7 +173,16 @@ export function ConversionBand({ title, description, label = 'Request a consulta
             <h2 id="hub-conversion-title">{title}</h2>
             <p>{description}</p>
           </div>
-          <Link href="/book-consultation" className="btn btn-primary">{label} <ArrowRight size={17} aria-hidden="true" /></Link>
+          <div style={{ display: 'flex', gap: 'var(--space-3)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <Link href={primaryHref} className="btn btn-primary">
+              {pLabel} <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+            {secondaryHref && secondaryLabel && (
+              <Link href={secondaryHref} className="btn btn-outline" style={{ color: 'var(--white)', borderColor: 'rgba(255,255,255,0.3)' }}>
+                {secondaryLabel}
+              </Link>
+            )}
+          </div>
         </div>
       </div>
     </section>

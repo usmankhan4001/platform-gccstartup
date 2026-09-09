@@ -12,7 +12,7 @@ import { getPublicContactRoutes, getSiteSettings } from '@/lib/directus'
 import { resolvePublicContact } from '@/lib/contact-routing'
 import '@/styles/cookie-consent.css'
 
-export default async function PublicLayout({ children }: { children: React.ReactNode }) {
+export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const requestHeaders = await headers()
   const [settings, contactRoutes] = await Promise.all([getSiteSettings(), getPublicContactRoutes()])
   const contact = resolvePublicContact(settings, contactRoutes, requestHeaders)
@@ -23,6 +23,11 @@ export default async function PublicLayout({ children }: { children: React.React
       <Suspense fallback={null}>
         <UtmCapture />
       </Suspense>
+      {/* `.site-root` is what scopes the scroll-reveal start state in tokens.css to
+          the public site. It has to wrap everything RevealObserver observes, and it
+          must exist nowhere else — the Puck editor's preview iframe copies the same
+          stylesheets but runs no observer, so an unscoped `.reveal { opacity: 0 }`
+          left every block invisible in the editor. */}
       <div className="site-root">
         <RevealObserver />
         <Navbar contact={contact} />

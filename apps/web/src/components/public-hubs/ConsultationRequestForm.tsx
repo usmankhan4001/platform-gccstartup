@@ -15,15 +15,17 @@ type LeadResponse = {
 }
 
 export function ConsultationRequestForm({
-  source,
-  countries,
-  interests,
+  source = 'Website Form',
+  countries = [],
+  interests = [],
   bookingContext = false,
+  submitLabel,
 }: {
-  source: string
-  countries: string[]
-  interests: string[]
+  source?: string
+  countries?: string[]
+  interests?: string[]
   bookingContext?: boolean
+  submitLabel?: string
 }) {
   const [state, setState] = useState<SubmitState>('idle')
   const [message, setMessage] = useState('')
@@ -127,7 +129,7 @@ export function ConsultationRequestForm({
           <div ref={feedbackRef} className={styles.formStatus} role="alert" tabIndex={-1}>{message}</div>
         )}
         <button type="submit" className="btn btn-primary w-full" disabled={state === 'submitting'}>
-          {state === 'submitting' ? 'Sending request...' : bookingContext ? 'Request my consultation' : 'Send consultation request'}
+          {state === 'submitting' ? 'Sending request...' : submitLabel || (bookingContext ? 'Request my consultation' : 'Send consultation request')}
         </button>
         <p id="lead-form-privacy" className={styles.formNote}>
           Submitting sends a consultation request, not a confirmed engagement or calendar booking. We use your details to respond to this enquiry. See our <Link href="/privacy" className={styles.textLink}>privacy notice</Link>.
