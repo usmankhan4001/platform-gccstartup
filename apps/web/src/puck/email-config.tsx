@@ -14,7 +14,7 @@ const RAW_COMPONENTS = Object.fromEntries(
       defaultProps: block.defaults,
       render: (props: Record<string, unknown>) => (
         <div
-          style={{ width: '100%', background: '#F8FAFC', padding: '8px 0' }}
+          style={{ width: '100%', background: '#F8FAFC', padding: '4px 0' }}
           dangerouslySetInnerHTML={{ __html: block.toHtml({ ...block.defaults, ...props }, DEFAULT_RENDER_CONTEXT) }}
         />
       ),
@@ -24,18 +24,34 @@ const RAW_COMPONENTS = Object.fromEntries(
 
 export const emailConfig: Config<EmailProps> = {
   root: {
-    render: ({ children }) => <div style={{ maxWidth: 640, margin: '0 auto' }}>{children}</div>,
+    render: ({ children }) => (
+      <div style={{ maxWidth: 640, margin: '0 auto', background: '#F8FAFC', padding: '16px 8px' }}>
+        {children}
+      </div>
+    ),
   },
   components: RAW_COMPONENTS,
   categories: {
-    content: {
-      title: 'Content',
-      components: ['EmailHero', 'EmailHeading', 'EmailText', 'EmailQuote', 'EmailCtaCard'],
+    header: {
+      title: 'Header & Brand',
+      components: ['EmailHeader'],
     },
-    buttons: { title: 'Buttons', components: ['EmailButton'] },
-    media: { title: 'Images', components: ['EmailImage'] },
-    layout: { title: 'Layout', components: ['EmailColumns', 'EmailDivider', 'EmailSpacer'] },
-    footer: { title: 'Footer', components: ['EmailFooter'] },
+    content: {
+      title: 'Content & Messaging',
+      components: ['EmailHero', 'EmailHeading', 'EmailText', 'EmailCtaCard', 'EmailQuote', 'EmailSignature'],
+    },
+    pricing: {
+      title: 'Pricing & Breakdown',
+      components: ['EmailPriceTable'],
+    },
+    layout: {
+      title: 'Layout & Columns',
+      components: ['EmailColumns', 'EmailButton', 'EmailImage', 'EmailDivider', 'EmailSpacer'],
+    },
+    compliance: {
+      title: 'Footer & Compliance',
+      components: ['EmailDisclaimer', 'EmailFooter'],
+    },
   },
 }
 

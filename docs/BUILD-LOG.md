@@ -847,6 +847,42 @@ Polish ensures the codebase compiles and runs correctly. File casing fixes elimi
 
 ---
 
+### 2026-09-08 — UI/UX — Unified Linear/HubSpot-Grade Platform Management Shell
+**Agent:** UI/UX & Systems Engineer
+**Files changed:**
+- `apps/web/src/components/shell/types.ts` — Hub and navigation configuration across CRM, Inbox, Marketing, Automations, CMS, Admin & API
+- `apps/web/src/components/shell/CommandPalette.tsx` — Radix Dialog-based Command Palette (`⌘K` / `Ctrl+K`)
+- `apps/web/src/components/shell/PlatformHeader.tsx` — Unified top application bar with hub switcher, global search, Meta WhatsApp status, quick create, notifications, staff profile dropdown
+- `apps/web/src/components/shell/PlatformSidebar.tsx` — Context-aware sidebar with active hub navigation, collapsible mode, health status
+- `apps/web/src/components/shell/PlatformBreadcrumbs.tsx` — Dynamic route breadcrumbs ribbon
+- `apps/web/src/components/shell/PlatformShell.tsx` — Master layout shell wrapper with responsive mobile drawer and Radix tooltip provider
+- `apps/web/src/components/shell/index.ts` — Barrel exports for shell components
+- `apps/web/src/components/ui/dropdown-menu.tsx` — Radix UI Dropdown Menu primitive
+- `apps/web/src/components/ui/dialog.tsx` — Radix UI Dialog primitive
+- `apps/web/src/components/ui/Tooltip.tsx` — Radix UI Tooltip primitive with backwards compatibility
+- `apps/web/src/components/ui/index.ts` — Exported new Radix UI primitives
+- `apps/web/src/app/crm/layout.tsx` — Integrated with PlatformShell
+- `apps/web/src/app/cms/layout.tsx` — Integrated with PlatformShell
+- `apps/web/src/app/admin/layout.tsx` — Integrated with PlatformShell
+- `apps/web/src/app/cms/pages/page.tsx` — Visual pages manager
+- `apps/web/src/app/cms/posts/page.tsx` — Blog & thought leadership articles manager
+- `apps/web/src/app/cms/media/page.tsx` — Cloudflare R2 media assets library
+- `apps/web/src/app/cms/seo/page.tsx` — SEO & AEO optimization studio
+- `apps/web/src/app/cms/settings/page.tsx` — Site publishing & CDN settings
+
+**What was done:**
+Refined the internal software platform shell into a unified HubSpot/Linear-grade management application across CRM, Inbox, Marketing, Automations, CMS, and Admin/API with strict adherence to V4 design tokens, Radix UI primitives, dynamic breadcrumbs, keyboard shortcuts (`⌘K`), and full responsive mobile drawer support.
+
+**Why:**
+Previously, `/crm`, `/cms`, and `/admin` used disparate, fragmented layout shells with disjointed navigation and missing subroutes. The unified shell provides seamless operator navigation and cohesive brand consistency.
+
+**Decisions:**
+- Strictly used V4 tokens: Deep corporate slate navy (`#0A142F`), pure crisp white surface (`#FFFFFF`), cool slate borders (`#E2E8F0`), and GCC orange accent (`#F26522`).
+- Preserved existing page layouts while enabling seamless subroute routing.
+- Tested Vitest suite (17/17 passing) and verified `pnpm typecheck` passes cleanly with zero errors.
+
+---
+
 ## Summary
 
 **Phase 5 (Polish) is complete.** The platform now has:

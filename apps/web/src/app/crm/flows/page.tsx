@@ -1,8 +1,8 @@
+'use client'
+
+import React from 'react'
+import { VisualWorkflowBuilder } from '@/components/crm/VisualWorkflowBuilder'
+
 export default function FlowsPage() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold text-[var(--text)] mb-4">Flows</h1>
-      <p className="text-[var(--text-secondary)]">Flows list will be connected to the database.</p>
-    </div>
-  )
+  return <VisualWorkflowBuilder />
 }

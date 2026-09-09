@@ -1,0 +1,42 @@
+/* Floating support widget — sits above the WhatsApp bubble but below the
+   cookie consent / modals so it never fights them for z-index. */
+.support-widget {
+  position: fixed;
+  right: var(--space-4);
+  bottom: calc(var(--space-4) + 72px); /* clears the WhatsApp bubble */
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--navy);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: var(--shadow-elevated);
+  text-decoration: none;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.support-widget:hover {
+  background: var(--orange);
+  transform: translateY(-2px);
+}
+.support-widget:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .support-widget {
+    bottom: calc(var(--space-4) + 60px);
+    padding: 10px 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .support-widget {
+    transition: none;
+  }
+}

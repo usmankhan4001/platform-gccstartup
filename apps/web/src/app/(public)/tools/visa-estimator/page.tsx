@@ -1,130 +1,163 @@
-'use client';
+'use client'
 
-import React, { useState } from 'react';
-import Link from 'next/link';
-import { Users, ArrowRight } from 'lucide-react';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { Users, ShieldCheck, ArrowRight, CheckCircle2, Calculator } from 'lucide-react'
+import { LeadCaptureModal } from '@/components/LeadCaptureModal'
 
 export default function VisaEstimator() {
-  const [employees, setEmployees] = useState('2');
-  const [jurisdiction, setJurisdiction] = useState('FreeZone');
-  const [showResults, setShowResults] = useState(false);
+  const [investorVisas, setInvestorVisas] = useState(1)
+  const [employeeVisas, setEmployeeVisas] = useState(0)
+  const [dependentVisas, setDependentVisas] = useState(0)
+  const [vipMedical, setVipMedical] = useState(true)
+  const [goldenVisa, setGoldenVisa] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowResults(true);
-  };
+  const investorCost = investorVisas * 4500
+  const employeeCost = employeeVisas * 5200
+  const dependentCost = dependentVisas * 3800
+  const vipCost = vipMedical ? (investorVisas + employeeVisas + dependentVisas) * 750 : 0
+  const goldenCost = goldenVisa ? 9500 : 0
 
-  const count = parseInt(employees) || 1;
-  const isFreeZone = jurisdiction === 'FreeZone';
-  const entryPermit = isFreeZone ? 1100 : 1500;
-  const medicalFitness = 350;
-  const emiratesId = 380;
-  const visaStamping = isFreeZone ? 1650 : 2100;
-  const perVisaTotal = entryPermit + medicalFitness + emiratesId + visaStamping;
-  const grandTotal = perVisaTotal * count;
-
-  const fmtAED = (n: number) =>
-    new Intl.NumberFormat('en-AE', { style: 'currency', currency: 'AED', maximumFractionDigits: 0 }).format(n);
+  const totalCostAED = investorCost + employeeCost + dependentCost + vipCost + goldenCost
+  const totalCostUSD = Math.round(totalCostAED / 3.6725)
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50">
-      <div className="pt-10 pb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">UAE Residence Visa Estimator</h1>
-      </div>
-
-      <div className="flex-1 px-4 py-6 max-w-2xl mx-auto w-full space-y-5">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200">
-          <h2 className="text-sm font-bold text-gray-900 mb-1">Calculate Investor & Employee Visa Costs</h2>
-          <p className="text-xs text-gray-500 mb-4">Includes entry permit, VIP medical fitness test, Emirates ID (2-year validity), and e-visa residency issuance.</p>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="jurisdiction" className="w-40 text-xs font-semibold text-gray-700">
-                Entity Type
-              </label>
-              <select
-                id="jurisdiction"
-                value={jurisdiction}
-                onChange={(e) => setJurisdiction(e.target.value)}
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary"
-              >
-                <option value="FreeZone">UAE Free Zone (Dubai / RAK / IFZA / Meydan)</option>
-                <option value="Mainland">Dubai Mainland (DED)</option>
-              </select>
-            </div>
-
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="employees" className="w-40 text-xs font-semibold text-gray-700">
-                Number of Visas Needed
-              </label>
-              <input
-                type="number"
-                id="employees"
-                min="1"
-                max="50"
-                className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary font-mono"
-                value={employees}
-                onChange={(e) => setEmployees(e.target.value)}
-                required
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full mt-2 bg-primary hover:bg-primary-700 text-white text-xs font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm"
-            >
-              Calculate Total Visa Package
-            </button>
-          </form>
+    <div className="bg-white text-[#0F172A] py-16">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <span className="text-xs font-black uppercase tracking-wider text-[#D97706] bg-[#FEF3C7] px-3 py-1 rounded-full border border-amber-200">
+            Immigration &amp; GDRFA
+          </span>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-black text-[#0A142F] tracking-tight">
+            UAE Visa &amp; Emirates ID Cost Estimator
+          </h1>
+          <p className="mt-2 text-[#334155] text-sm">
+            Calculate exact government immigration fees, establishment card, 2-year Emirates ID biometrics, and VIP medical.
+          </p>
         </div>
 
-        {showResults && (
-          <div className="space-y-4 animate-in fade-in duration-300">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-              <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-primary" />
-                  <h3 className="text-xs font-bold text-gray-900">Official Government & Medical Fee Schedule</h3>
-                </div>
-                <span className="text-xs font-mono font-bold text-primary">{count} Visa(s)</span>
-              </div>
+        {/* Form Card */}
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-3xl p-6 sm:p-8 shadow-xs mb-8 space-y-5">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1">
+                Investor / Partner Visas
+              </label>
+              <select
+                value={investorVisas}
+                onChange={(e) => setInvestorVisas(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
+              >
+                {[0, 1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>{n} Visa{n !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-[#64748B] mt-0.5 block">AED 4,500 / visa</span>
+            </div>
 
-              <div className="p-5 space-y-3 text-xs">
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-600">Entry Permit / Change of Status</span>
-                  <span className="font-mono font-medium text-gray-900">{fmtAED(entryPermit * count)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-600">Medical Fitness Test (VIP fast track)</span>
-                  <span className="font-mono font-medium text-gray-900">{fmtAED(medicalFitness * count)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-600">Emirates ID Biometrics (2 Years)</span>
-                  <span className="font-mono font-medium text-gray-900">{fmtAED(emiratesId * count)}</span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-gray-100">
-                  <span className="text-gray-600">Residency Stamping & Establishment Issuance</span>
-                  <span className="font-mono font-medium text-gray-900">{fmtAED(visaStamping * count)}</span>
-                </div>
-                <div className="flex justify-between pt-2 text-sm font-bold text-gray-900">
-                  <span>Total Estimated Visa Government Cost</span>
-                  <span className="font-mono text-primary">{fmtAED(grandTotal)}</span>
-                </div>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1">
+                Employee Staff Visas
+              </label>
+              <select
+                value={employeeVisas}
+                onChange={(e) => setEmployeeVisas(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
+              >
+                {[0, 1, 2, 3, 4, 5, 10].map((n) => (
+                  <option key={n} value={n}>{n} Visa{n !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-[#64748B] mt-0.5 block">AED 5,200 / visa (MOHRE)</span>
+            </div>
 
-              <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-xs text-gray-500">Need VIP PRO concierge processing?</span>
-                <Link
-                  href="/services"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-primary hover:text-primary-700"
-                >
-                  Book Visa Package <ArrowRight className="w-3 h-3" />
-                </Link>
-              </div>
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1">
+                Family Dependents
+              </label>
+              <select
+                value={dependentVisas}
+                onChange={(e) => setDependentVisas(Number(e.target.value))}
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
+              >
+                {[0, 1, 2, 3, 4, 5].map((n) => (
+                  <option key={n} value={n}>{n} Visa{n !== 1 ? 's' : ''}</option>
+                ))}
+              </select>
+              <span className="text-[10px] text-[#64748B] mt-0.5 block">AED 3,800 / dependent</span>
             </div>
           </div>
-        )}
+
+          <div className="space-y-2.5 pt-2">
+            <label className="flex items-center gap-3 cursor-pointer bg-white border border-[#CBD5E1] p-3 rounded-xl">
+              <input
+                type="checkbox"
+                checked={vipMedical}
+                onChange={(e) => setVipMedical(e.target.checked)}
+                className="rounded border-gray-300 text-[#F26522] focus:ring-[#F26522] h-4 w-4 accent-[#F26522]"
+              />
+              <span className="text-xs text-[#0F172A] font-semibold">
+                VIP 2-Hour Express Medical &amp; Biometrics Concierge (+AED 750 / person)
+              </span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer bg-white border border-[#CBD5E1] p-3 rounded-xl">
+              <input
+                type="checkbox"
+                checked={goldenVisa}
+                onChange={(e) => setGoldenVisa(e.target.checked)}
+                className="rounded border-gray-300 text-[#F26522] focus:ring-[#F26522] h-4 w-4 accent-[#F26522]"
+              />
+              <span className="text-xs text-[#0F172A] font-semibold">
+                Upgrade to 10-Year UAE Golden Visa Fast-Track Nomination (+AED 9,500)
+              </span>
+            </label>
+          </div>
+        </div>
+
+        {/* Total Box */}
+        <div className="bg-[#0A142F] text-white rounded-3xl p-8 shadow-xl text-center mb-8">
+          <span className="text-xs font-bold uppercase tracking-widest text-[#F26522] block mb-1">
+            Total Immigration &amp; Visa Fee
+          </span>
+          <div className="text-4xl sm:text-5xl font-black tracking-tight text-white my-2">
+            AED {totalCostAED.toLocaleString()}
+          </div>
+          <div className="text-sm font-semibold text-[#F26522]">
+            Approx. ${totalCostUSD.toLocaleString()} USD
+          </div>
+          <p className="text-xs text-white/70 mt-2">
+            Includes establishment file registration, entry permits, status change, 2-year Emirates ID cards, and VIP medical clearance.
+          </p>
+
+          <button
+            type="button"
+            onClick={() => setShowModal(true)}
+            className="mt-6 px-8 py-3.5 rounded-xl bg-[#F26522] hover:bg-[#C9511A] text-white font-black text-xs uppercase tracking-wider transition-colors shadow-lg cursor-pointer"
+          >
+            Lock In Visa Quota &amp; Book Concierge →
+          </button>
+        </div>
+
+        <LeadCaptureModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          toolSlug="visa-estimator"
+          toolTitle="Visa Cost Estimator"
+          calculatorData={{
+            investorVisas,
+            employeeVisas,
+            dependentVisas,
+            vipMedical,
+            goldenVisa,
+            totalCostAED,
+            totalCostUSD,
+          }}
+          estimatedValue={totalCostUSD}
+        />
       </div>
     </div>
-  );
+  )
 }

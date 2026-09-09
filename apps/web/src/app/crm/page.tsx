@@ -93,6 +93,12 @@ export default function CrmDashboardPage() {
               Directory
             </Button>
           </Link>
+          <Link href="/crm/renewals">
+            <Button variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-1.5 text-blue-600" />
+              Renewal Ledger
+            </Button>
+          </Link>
           <Link href="/crm/deals">
             <Button size="sm">
               <Handshake className="h-4 w-4 mr-1.5" />
@@ -173,7 +179,7 @@ export default function CrmDashboardPage() {
       </div>
 
       {/* Quick Action Shortcuts */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Link
           href="/crm/deals"
           className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-[var(--accent)] hover:shadow-sm group"
@@ -186,15 +192,33 @@ export default function CrmDashboardPage() {
               <span className="block font-bold text-sm text-[var(--text)] group-hover:text-[var(--accent)] transition-colors">
                 Kanban Pipeline
               </span>
-              <span className="text-xs text-[var(--text-secondary)]">Drag-and-drop deals across 7 stages</span>
+              <span className="text-xs text-[var(--text-secondary)]">Drag-and-drop across 8 stages</span>
             </div>
           </div>
           <ArrowRight className="h-4 w-4 text-[var(--text-tertiary)] group-hover:translate-x-1 group-hover:text-[var(--accent)] transition-all" />
         </Link>
 
         <Link
+          href="/crm/renewals"
+          className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-blue-500 hover:shadow-sm group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="block font-bold text-sm text-[var(--text)] group-hover:text-blue-600 transition-colors">
+                Renewal Ledger
+              </span>
+              <span className="text-xs text-[var(--text-secondary)]">60d/30d/7d automated alerts</span>
+            </div>
+          </div>
+          <ArrowRight className="h-4 w-4 text-[var(--text-tertiary)] group-hover:translate-x-1 group-hover:text-blue-600 transition-all" />
+        </Link>
+
+        <Link
           href="/crm/inbox"
-          className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-[var(--accent)] hover:shadow-sm group"
+          className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-emerald-500 hover:shadow-sm group"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-600 text-white">
@@ -212,7 +236,7 @@ export default function CrmDashboardPage() {
 
         <Link
           href="/crm/campaigns"
-          className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-[var(--accent)] hover:shadow-sm group"
+          className="flex items-center justify-between rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs transition-all hover:border-[var(--orange)] hover:shadow-sm group"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[var(--orange)] text-white">
@@ -222,7 +246,7 @@ export default function CrmDashboardPage() {
               <span className="block font-bold text-sm text-[var(--text)] group-hover:text-[var(--orange)] transition-colors">
                 Campaign Wizard
               </span>
-              <span className="text-xs text-[var(--text-secondary)]">Broadcast WhatsApp &amp; SES email</span>
+              <span className="text-xs text-[var(--text-secondary)]">Broadcast WhatsApp &amp; SES</span>
             </div>
           </div>
           <ArrowRight className="h-4 w-4 text-[var(--text-tertiary)] group-hover:translate-x-1 group-hover:text-[var(--orange)] transition-all" />

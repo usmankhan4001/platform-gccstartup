@@ -2,6 +2,7 @@
 // This file exists so Puck blocks can import without errors during migration
 
 export type SiteSettings = Record<string, any>
+export type ContactRouteItem = Record<string, any>
 export type CountryItem = Record<string, any>
 export type LeadStatus = string
 export type LeadPriority = 'low' | 'normal' | 'high' | 'urgent'

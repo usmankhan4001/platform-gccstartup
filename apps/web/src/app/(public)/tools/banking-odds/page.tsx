@@ -1,63 +1,74 @@
-"use client";
+'use client'
 
-import React, { useState } from "react";
-import Link from "next/link";
-import { industryRiskTier, type IndustryRiskTier } from '@/lib/persona';
-import { COUNTRIES } from '@/lib/countries';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { Landmark, ArrowRight, ShieldCheck, Loader2 } from 'lucide-react'
+import { COUNTRIES } from '@/lib/countries'
+import { LeadCaptureModal } from '@/components/LeadCaptureModal'
 
 interface BankResult {
-  bank: string;
-  odds: number;
+  bank: string
+  odds: number
+  turnaround: string
+  tier: string
 }
 
-function computeOdds(risk: IndustryRiskTier, turnover: number): BankResult[] {
-  const base: Record<IndustryRiskTier, { wio: number; enbd: number }> = {
-    LOW: { wio: 95, enbd: 85 },
-    MEDIUM: { wio: 75, enbd: 60 },
-    HIGH: { wio: 40, enbd: 20 },
-    CRITICAL: { wio: 15, enbd: 5 },
-  };
-  const turnoverBonus = turnover >= 500000 ? 5 : turnover < 50000 ? -10 : 0;
-  const clamp = (n: number) => Math.max(5, Math.min(99, n));
+function computeOdds(industry: string, turnover: number): BankResult[] {
+  let baseOdds = 85
+  if (['Crypto', 'Real Estate', 'Gambling'].includes(industry)) baseOdds = 45
+  if (['Consulting', 'Technology', 'Marketing'].includes(industry)) baseOdds = 95
+  if (turnover >= 500000) baseOdds += 5
+
+  const clamp = (n: number) => Math.max(10, Math.min(99, n))
 
   return [
-    { bank: 'Wio Bank', odds: clamp(base[risk].wio + turnoverBonus) },
-    { bank: 'Emirates NBD', odds: clamp(base[risk].enbd + turnoverBonus) },
-    { bank: 'Mashreq NeoBiz', odds: clamp(base[risk].wio - 5 + turnoverBonus) },
-    { bank: 'ADCB Commercial', odds: clamp(base[risk].enbd - 10 + turnoverBonus) },
-  ];
+    { bank: 'Wio Bank Business (Digital)', odds: clamp(baseOdds), turnaround: '48 - 72 Hours', tier: 'Top Pick' },
+    { bank: 'Mashreq NeoBiz (Digital)', odds: clamp(baseOdds - 5), turnaround: '3 - 5 Days', tier: 'Fast Track' },
+    { bank: 'Emirates NBD (Tier 1)', odds: clamp(baseOdds - 15), turnaround: '10 - 15 Days', tier: 'Traditional' },
+    { bank: 'ADCB Commercial', odds: clamp(baseOdds - 20), turnaround: '15 - 20 Days', tier: 'Traditional' },
+  ]
 }
 
 export default function BankingOddsMatcher() {
-  const [nationality, setNationality] = useState("");
-  const [industry, setIndustry] = useState("");
-  const [turnover, setTurnover] = useState<number | ''>('');
-  const [results, setResults] = useState<BankResult[] | null>(null);
+  const [nationality, setNationality] = useState('')
+  const [industry, setIndustry] = useState('')
+  const [turnover, setTurnover] = useState<number | ''>(250000)
+  const [results, setResults] = useState<BankResult[] | null>(null)
+  const [showModal, setShowModal] = useState(false)
 
-  const handleCalculate = () => {
-    if (!nationality || !industry || !turnover) return;
-    const risk: IndustryRiskTier = 'LOW';
-    setResults(computeOdds(risk, Number(turnover)));
-  };
+  const handleCalculate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!industry || !turnover) return
+    setResults(computeOdds(industry, Number(turnover)))
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
-      <div className="pt-10 pb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Banking Odds</h1>
-      </div>
+    <div className="bg-white text-[#0F172A] py-16">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <span className="text-xs font-black uppercase tracking-wider text-[#1B4FD8] bg-[#EFF6FF] px-3 py-1 rounded-full border border-blue-200">
+            Banking Risk Model
+          </span>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-black text-[#0A142F] tracking-tight">
+            UAE Bank Account Approval Predictor
+          </h1>
+          <p className="mt-2 text-[#334155] text-sm">
+            Predict your corporate account approval odds across Wio, NeoBiz, ENBD, and ADCB before filing.
+          </p>
+        </div>
 
-      <main className="flex-1 max-w-2xl w-full mx-auto p-4 space-y-4 mt-4">
-        <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 space-y-4">
-          <div className="space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="nationality" className="w-40 text-xs font-semibold text-gray-700">
-                Nationality
+        {/* Input Card */}
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-3xl p-6 sm:p-8 shadow-xs mb-8">
+          <form onSubmit={handleCalculate} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
+                Shareholder / Signatory Nationality
               </label>
               <select
-                id="nationality"
                 value={nationality}
                 onChange={(e) => setNationality(e.target.value)}
-                className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-primary focus:ring-1 focus:ring-primary p-2 text-sm border outline-none transition-colors bg-white text-gray-900"
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
               >
                 <option value="">Select Nationality</option>
                 {COUNTRIES.map((c) => (
@@ -68,89 +79,116 @@ export default function BankingOddsMatcher() {
               </select>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="industry" className="w-40 text-xs font-semibold text-gray-700">
-                Industry
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
+                Business Activity / Industry
               </label>
               <select
-                id="industry"
                 value={industry}
                 onChange={(e) => setIndustry(e.target.value)}
-                className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-primary focus:ring-1 focus:ring-primary p-2 text-sm border outline-none transition-colors bg-white text-gray-900"
+                required
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
               >
-                <option value="">Select Industry</option>
-                <option value="Consulting">Consulting / Agency</option>
-                <option value="Technology">Software / SaaS / Tech</option>
-                <option value="E-commerce">E-commerce / Retail</option>
-                <option value="Marketing">Media & Marketing</option>
-                <option value="Crypto">Crypto / Web3</option>
-                <option value="Real Estate">Real Estate</option>
-                <option value="Other">Other Business Activity</option>
+                <option value="">Select Activity</option>
+                <option value="Technology">Software / SaaS / AI / Tech</option>
+                <option value="Consulting">Management Consulting &amp; Agency</option>
+                <option value="E-commerce">Cross-Border E-Commerce &amp; Retail</option>
+                <option value="Marketing">Digital Media &amp; Advertising</option>
+                <option value="Real Estate">Property &amp; Real Estate Brokerage</option>
+                <option value="Crypto">Web3 / Blockchain / Digital Assets</option>
+                <option value="Trading">General Trading &amp; Commodities</option>
               </select>
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-              <label htmlFor="turnover" className="w-40 text-xs font-semibold text-gray-700">
-                Annual Turnover ($)
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
+                Expected Annual Turnover ($ USD)
               </label>
               <input
-                id="turnover"
                 type="number"
                 value={turnover}
                 onChange={(e) => setTurnover(e.target.value === '' ? '' : Number(e.target.value))}
-                placeholder="150000"
-                className="flex-1 border-gray-300 rounded-lg shadow-sm focus:border-primary focus:ring-1 focus:ring-primary p-2 text-sm border outline-none transition-colors bg-white text-gray-900"
+                placeholder="250000"
+                required
+                className="w-full px-3.5 py-2.5 text-sm font-bold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522] font-mono"
               />
             </div>
-          </div>
 
-          <button
-            onClick={handleCalculate}
-            disabled={!nationality || !industry || !turnover}
-            className="w-full bg-primary hover:bg-primary-700 text-white text-sm font-semibold py-2.5 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-          >
-            Calculate Approval Odds
-          </button>
+            <button
+              type="submit"
+              className="w-full bg-[#1B4FD8] hover:bg-[#1039AC] text-white font-black py-3.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md cursor-pointer"
+            >
+              <Landmark className="h-4 w-4" />
+              Analyze Approval Probability
+            </button>
+          </form>
         </div>
 
+        {/* Results */}
         {results && (
           <div className="space-y-4 animate-in fade-in duration-300">
-            <h2 className="text-base font-bold text-gray-900">Your Bank Approval Estimates</h2>
+            <h2 className="text-sm font-black text-[#0A142F] uppercase tracking-wider">
+              Bank Approval Odds Breakdown
+            </h2>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {results.map((result, idx) => (
-                <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {results.map((res) => (
+                <div
+                  key={res.bank}
+                  className="bg-white p-5 rounded-2xl border border-[#E2E8F0] shadow-xs flex items-center justify-between"
+                >
                   <div>
-                    <h3 className="font-bold text-sm text-gray-900">{result.bank}</h3>
-                    <p className="text-xs text-gray-500">Corporate Account</p>
+                    <span className="text-[9px] font-extrabold uppercase bg-[#EFF6FF] text-[#1B4FD8] px-2 py-0.5 rounded">
+                      {res.tier}
+                    </span>
+                    <h3 className="font-bold text-sm text-[#0F172A] mt-1.5">{res.bank}</h3>
+                    <p className="text-[11px] text-[#64748B]">Est. Speed: {res.turnaround}</p>
                   </div>
                   <div className="text-right">
-                    <div className="text-xl font-black text-gray-900">
-                      {result.odds}<span className="text-xs font-semibold text-gray-400">%</span>
+                    <div className="text-2xl font-black text-[#0A142F]">
+                      {res.odds}<span className="text-xs font-semibold text-[#64748B]">%</span>
                     </div>
-                    <p className={`text-[11px] font-bold ${result.odds > 80 ? 'text-emerald-600' : result.odds > 50 ? 'text-amber-600' : 'text-rose-600'}`}>
-                      {result.odds > 80 ? 'High Likelihood' : result.odds > 50 ? 'Moderate Odds' : 'Special Approval Needed'}
-                    </p>
+                    <span className={`text-[10px] font-extrabold ${res.odds >= 80 ? 'text-emerald-600' : 'text-amber-600'}`}>
+                      {res.odds >= 80 ? 'High Likelihood' : 'Dossier Review'}
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="bg-primary/5 border border-primary/20 rounded-xl p-5 text-center space-y-3 mt-4">
-              <h3 className="text-sm font-bold text-primary">Need Guaranteed Banking Support?</h3>
-              <p className="text-gray-600 text-xs max-w-md mx-auto">
-                Our banking compliance officers manage relationship officer submissions, compliance files, and fast-track opening.
-              </p>
-              <Link
-                href="/services"
-                className="inline-block bg-primary hover:bg-primary-700 text-white text-xs font-semibold py-2.5 px-6 rounded-lg transition-colors shadow-sm"
+            {/* Concierge Box */}
+            <div className="bg-[#0A142F] text-white rounded-2xl p-6 sm:p-8 flex flex-col sm:flex-row items-center justify-between gap-4 mt-6">
+              <div>
+                <h4 className="text-base font-bold text-white">Need Guaranteed Bank Account Filing?</h4>
+                <p className="text-xs text-white/70 mt-1 max-w-md">
+                  Our compliance team prepares your business profile, invoice proofs, and arranges direct relationship manager submission.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowModal(true)}
+                className="px-6 py-3 rounded-xl bg-[#F26522] hover:bg-[#C9511A] text-white font-bold text-xs uppercase tracking-wider shrink-0 transition-colors cursor-pointer shadow-md"
               >
-                Explore Banking Concierge
-              </Link>
+                Inquire Banking Concierge →
+              </button>
             </div>
           </div>
         )}
-      </main>
+
+        <LeadCaptureModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          toolSlug="banking-odds"
+          toolTitle="Banking Odds Matcher"
+          calculatorData={{
+            nationality,
+            industry,
+            turnover,
+            oddsResult: results,
+          }}
+          estimatedValue={6500}
+        />
+      </div>
     </div>
-  );
+  )
 }

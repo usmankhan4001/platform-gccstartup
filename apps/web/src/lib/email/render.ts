@@ -71,11 +71,24 @@ export type EmailDocument = {
  * fill in. `unsubscribe_url` is listed so an author can drop it into body copy;
  * the footer block gets its value from renderEmail's options, not from here. */
 export const EMAIL_MERGE_TAGS: ReadonlyArray<{ tag: string; label: string; sample: string }> = [
-  { tag: '{{name}}', label: 'Full name', sample: 'Sarah Al Mansouri' },
-  { tag: '{{firstname}}', label: 'First name', sample: 'Sarah' },
+  { tag: '{{first_name}}', label: 'First name', sample: 'Tariq' },
+  { tag: '{{firstname}}', label: 'First name (alias)', sample: 'Tariq' },
+  { tag: '{{last_name}}', label: 'Last name', sample: 'Al-Mansoor' },
+  { tag: '{{name}}', label: 'Full name', sample: 'Tariq Al-Mansoor' },
+  { tag: '{{email}}', label: 'Email address', sample: 'tariq@almansoorgroup.ae' },
+  { tag: '{{company_name}}', label: 'Company / Brand Name', sample: 'Apex Global Technologies FZ-LLC' },
+  { tag: '{{jurisdiction}}', label: 'Jurisdiction', sample: 'Dubai Multi Commodities Centre (DMCC)' },
   { tag: '{{country}}', label: 'Country of interest', sample: 'United Arab Emirates' },
-  { tag: '{{interest}}', label: 'Stated interest', sample: 'Free zone company setup' },
-  { tag: '{{email}}', label: 'Email address', sample: 'sarah@example.com' },
+  { tag: '{{interest}}', label: 'Stated interest', sample: 'Free Zone Tech Formation & Golden Visa' },
+  { tag: '{{tax_savings_aed}}', label: 'Estimated Tax Savings', sample: '185,000 AED' },
+  { tag: '{{deal_value}}', label: 'Estimated Deal Value', sample: 'AED 16,500' },
+  { tag: '{{trade_license_expiry}}', label: 'Trade License Expiry', sample: '15 November 2026' },
+  { tag: '{{license_number}}', label: 'Trade License Number', sample: 'DMCC-948210' },
+  { tag: '{{assigned_desk}}', label: 'Assigned Desk', sample: 'Dubai Desk (Emaar Square)' },
+  { tag: '{{advisor_name}}', label: 'Dedicated Specialist', sample: 'Sarah Al-Maktoum' },
+  { tag: '{{portal_url}}', label: 'Client Portal Token URL', sample: 'https://gccstartup.com/track/tk_784f19bc' },
+  { tag: '{{nda_download_url}}', label: 'Encrypted NDA URL', sample: 'https://gccstartup.com/nda/download/nda_99182' },
+  { tag: '{{quote_amount}}', label: 'Official Quotation Amount', sample: 'AED 14,700' },
   { tag: '{{unsubscribe_url}}', label: 'Unsubscribe link', sample: 'https://gccstartup.com/unsubscribe?token=sample' },
 ]
 

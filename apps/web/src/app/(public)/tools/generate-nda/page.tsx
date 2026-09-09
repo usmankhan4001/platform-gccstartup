@@ -1,23 +1,26 @@
-"use client";
+'use client'
 
-import React, { useState } from 'react';
-import { Copy, Check, FileText, Printer } from 'lucide-react';
+import React, { useState } from 'react'
+import Link from 'next/link'
+import { Copy, Check, FileText, Printer, Sparkles, ShieldCheck } from 'lucide-react'
+import { LeadCaptureModal } from '@/components/LeadCaptureModal'
 
 export default function GenerateNDAPage() {
-  const [yourCompany, setYourCompany] = useState('');
-  const [otherParty, setOtherParty] = useState('');
-  const [jurisdictionChoice, setJurisdictionChoice] = useState('DIFC (Dubai International Financial Centre)');
-  const [generated, setGenerated] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [yourCompany, setYourCompany] = useState('')
+  const [otherParty, setOtherParty] = useState('')
+  const [jurisdictionChoice, setJurisdictionChoice] = useState('DIFC (Dubai International Financial Centre)')
+  const [generated, setGenerated] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const [showModal, setShowModal] = useState(false)
 
   const handleGenerate = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!yourCompany || !otherParty) return;
-    setGenerated(true);
-  };
+    e.preventDefault()
+    if (!yourCompany || !otherParty) return
+    setGenerated(true)
+  }
 
   const getNDAText = () => {
-    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    const today = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
     return `MUTUAL NON-DISCLOSURE AGREEMENT (NDA)
 
 This Non-Disclosure Agreement (the "Agreement") is entered into as of ${today} (the "Effective Date"), by and between:
@@ -47,122 +50,142 @@ IN WITNESS WHEREOF, the Parties have executed this Mutual Non-Disclosure Agreeme
 
 ___________________________                  ___________________________
 For: ${yourCompany || '[Party A]'}            For: ${otherParty || '[Party B]'}
-Authorized Signatory                         Authorized Signatory`;
-  };
+Authorized Signatory                         Authorized Signatory`
+  }
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(getNDAText());
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
-  };
+    await navigator.clipboard.writeText(getNDAText())
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2500)
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <div className="pt-10 pb-4 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Mutual NDA Generator</h1>
-      </div>
+    <div className="bg-white text-[#0F172A] py-16">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <span className="text-xs font-black uppercase tracking-wider text-[#F26522] bg-[#FEF1E9] px-3 py-1 rounded-full border border-orange-200">
+            Legal Drafting Utility
+          </span>
+          <h1 className="mt-3 text-3xl sm:text-4xl font-black text-[#0A142F] tracking-tight">
+            Mutual Non-Disclosure Agreement Generator
+          </h1>
+          <p className="mt-2 text-[#334155] text-sm">
+            Generate an enforceable bilateral NDA formatted for UAE, DIFC, ADGM, and international cross-border transactions.
+          </p>
+        </div>
 
-      <main className="flex-1 p-4 flex justify-center items-start pt-6">
-        <div className="max-w-2xl w-full space-y-5">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-            <div className="mb-4">
-              <h2 className="text-sm font-bold text-gray-900 mb-1">Generate a Bilateral NDA</h2>
-              <p className="text-xs text-gray-500">Instant, legally standard mutual non-disclosure agreement formatted for international and GCC business.</p>
-            </div>
-
-            <form onSubmit={handleGenerate} className="space-y-3">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <label htmlFor="yourCompany" className="w-40 text-xs font-semibold text-gray-700">
+        {/* Input Card */}
+        <div className="bg-[#F8FAFC] border border-[#E2E8F0] rounded-3xl p-6 sm:p-8 shadow-xs mb-8">
+          <form onSubmit={handleGenerate} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
                   Your Company / Legal Name
                 </label>
                 <input
                   type="text"
-                  id="yourCompany"
                   value={yourCompany}
                   onChange={(e) => setYourCompany(e.target.value)}
                   placeholder="e.g. Apex Global Tech FZ-LLC"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
                   required
                 />
               </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <label htmlFor="otherParty" className="w-40 text-xs font-semibold text-gray-700">
-                  Counterparty Name
+              <div>
+                <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
+                  Counterparty Legal Name
                 </label>
                 <input
                   type="text"
-                  id="otherParty"
                   value={otherParty}
                   onChange={(e) => setOtherParty(e.target.value)}
                   placeholder="e.g. Venture Capital Partners LLC"
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
+                  className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
                   required
                 />
               </div>
+            </div>
 
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                <label htmlFor="jurisdictionChoice" className="w-40 text-xs font-semibold text-gray-700">
-                  Governing Law
-                </label>
-                <select
-                  id="jurisdictionChoice"
-                  value={jurisdictionChoice}
-                  onChange={(e) => setJurisdictionChoice(e.target.value)}
-                  className="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition-colors"
-                >
-                  <option value="DIFC (Dubai International Financial Centre)">DIFC (English Common Law / Dubai)</option>
-                  <option value="ADGM (Abu Dhabi Global Market)">ADGM (English Common Law / Abu Dhabi)</option>
-                  <option value="United Arab Emirates (Mainland Law)">United Arab Emirates (Civil Code)</option>
-                  <option value="England & Wales">England & Wales</option>
-                  <option value="State of Delaware, USA">State of Delaware, USA</option>
-                  <option value="Singapore">Singapore Law</option>
-                </select>
-              </div>
-
-              <button
-                type="submit"
-                disabled={!yourCompany || !otherParty}
-                className="w-full mt-2 bg-primary text-white text-xs font-semibold py-2.5 px-4 rounded-lg shadow-sm hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            <div>
+              <label className="block text-xs font-bold text-[#0A142F] uppercase mb-1.5">
+                Governing Law &amp; Jurisdiction
+              </label>
+              <select
+                value={jurisdictionChoice}
+                onChange={(e) => setJurisdictionChoice(e.target.value)}
+                className="w-full px-3.5 py-2.5 text-xs font-semibold border border-[#CBD5E1] rounded-xl bg-white focus:outline-none focus:border-[#F26522]"
               >
-                Generate Mutual NDA
-              </button>
-            </form>
-          </div>
+                <option value="DIFC (Dubai International Financial Centre)">DIFC (English Common Law / Dubai)</option>
+                <option value="ADGM (Abu Dhabi Global Market)">ADGM (English Common Law / Abu Dhabi)</option>
+                <option value="United Arab Emirates (Civil Code)">United Arab Emirates (Civil Code)</option>
+                <option value="England &amp; Wales">England &amp; Wales</option>
+                <option value="State of Delaware, USA">State of Delaware, USA</option>
+                <option value="Singapore">Singapore Law</option>
+              </select>
+            </div>
 
-          {generated && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden animate-in fade-in duration-300">
-              <div className="p-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold text-gray-900">
-                  <FileText className="w-4 h-4 text-primary" />
-                  Generated Mutual NDA Agreement
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleCopy}
-                    className="flex items-center gap-1.5 bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-xs"
-                  >
-                    {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? 'Copied' : 'Copy Text'}
-                  </button>
-                  <button
-                    onClick={() => window.print()}
-                    className="flex items-center gap-1.5 bg-primary hover:bg-primary-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors shadow-xs"
-                  >
-                    <Printer className="w-3.5 h-3.5" />
-                    Print Agreement
-                  </button>
-                </div>
+            <button
+              type="submit"
+              disabled={!yourCompany || !otherParty}
+              className="w-full bg-[#0A142F] hover:bg-[#1039AC] text-white font-black py-3.5 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 text-xs uppercase tracking-wider shadow-md cursor-pointer disabled:opacity-50"
+            >
+              <FileText className="h-4 w-4 text-[#F26522]" />
+              Generate Mutual NDA Document
+            </button>
+          </form>
+        </div>
+
+        {/* NDA Result Box */}
+        {generated && (
+          <div className="bg-white rounded-2xl shadow-xl border border-[#E2E8F0] overflow-hidden animate-in fade-in duration-300">
+            <div className="p-4 bg-[#F8FAFC] border-b border-[#E2E8F0] flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-[#0A142F]">
+                <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                <span>Ready for Execution ({jurisdictionChoice.split(' ')[0]})</span>
               </div>
-              <div className="p-5">
-                <pre className="text-xs font-mono text-gray-800 whitespace-pre-wrap leading-relaxed bg-gray-50/50 p-4 rounded-lg border border-gray-100 max-h-96 overflow-y-auto">
-                  {getNDAText()}
-                </pre>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 bg-white border border-[#CBD5E1] hover:bg-[#F1F5F9] text-[#0A142F] text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  <span>{copied ? 'Copied' : 'Copy Text'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowModal(true)}
+                  className="flex items-center gap-1.5 bg-[#F26522] hover:bg-[#C9511A] text-white text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Request Custom Legal Review</span>
+                </button>
               </div>
             </div>
-          )}
-        </div>
-      </main>
+
+            <div className="p-5">
+              <pre className="text-xs font-mono text-[#334155] whitespace-pre-wrap leading-relaxed bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] max-h-96 overflow-y-auto">
+                {getNDAText()}
+              </pre>
+            </div>
+          </div>
+        )}
+
+        <LeadCaptureModal
+          isOpen={showModal}
+          onClose={() => setShowModal(false)}
+          toolSlug="generate-nda"
+          toolTitle="Instant NDA Generator"
+          calculatorData={{
+            yourCompany,
+            otherParty,
+            jurisdictionChoice,
+          }}
+          estimatedValue={4800}
+        />
+      </div>
     </div>
-  );
+  )
 }

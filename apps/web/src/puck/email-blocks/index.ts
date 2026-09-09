@@ -1,12 +1,16 @@
 import { EmailButton } from './EmailButton'
 import { EmailColumns } from './EmailColumns'
 import { EmailCtaCard } from './EmailCtaCard'
+import { EmailDisclaimer } from './EmailDisclaimer'
 import { EmailDivider } from './EmailDivider'
 import { EmailFooter } from './EmailFooter'
+import { EmailHeader } from './EmailHeader'
 import { EmailHeading } from './EmailHeading'
 import { EmailHero } from './EmailHero'
 import { EmailImage } from './EmailImage'
+import { EmailPriceTable } from './EmailPriceTable'
 import { EmailQuote } from './EmailQuote'
+import { EmailSignature } from './EmailSignature'
 import { EmailSpacer } from './EmailSpacer'
 import { EmailText } from './EmailText'
 import type { EmailBlockRenderer } from './shared'
@@ -19,16 +23,20 @@ import type { EmailBlockRenderer } from './shared'
  * Insertion order here is the order the blocks appear in the designer's picker.
  */
 export const EMAIL_BLOCKS = {
+  EmailHeader,
   EmailHero,
   EmailHeading,
   EmailText,
   EmailButton,
   EmailImage,
   EmailColumns,
-  EmailQuote,
+  EmailPriceTable,
   EmailCtaCard,
+  EmailQuote,
+  EmailSignature,
   EmailDivider,
   EmailSpacer,
+  EmailDisclaimer,
   EmailFooter,
 } satisfies Record<string, EmailBlockRenderer>
 
@@ -43,14 +51,18 @@ export function getEmailBlock(type: unknown): EmailBlockRenderer | null {
 
 export { fallbackFooter } from './EmailFooter'
 export * from './shared'
+export type { EmailHeaderProps } from './EmailHeader'
 export type { EmailHeroProps } from './EmailHero'
 export type { EmailHeadingProps } from './EmailHeading'
 export type { EmailTextProps } from './EmailText'
 export type { EmailButtonProps } from './EmailButton'
 export type { EmailImageProps } from './EmailImage'
 export type { EmailColumnsProps, EmailColumn } from './EmailColumns'
+export type { EmailPriceTableProps, EmailPriceRow } from './EmailPriceTable'
 export type { EmailQuoteProps } from './EmailQuote'
+export type { EmailSignatureProps } from './EmailSignature'
 export type { EmailCtaCardProps } from './EmailCtaCard'
 export type { EmailDividerProps } from './EmailDivider'
 export type { EmailSpacerProps } from './EmailSpacer'
+export type { EmailDisclaimerProps } from './EmailDisclaimer'
 export type { EmailFooterProps, EmailFooterLink } from './EmailFooter'
