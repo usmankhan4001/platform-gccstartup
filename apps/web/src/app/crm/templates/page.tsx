@@ -71,6 +71,7 @@ export default function TemplatesPage() {
   const { success: showSuccess, error: showError } = useToast()
   const [templates, setTemplates] = useState<Template[]>(DEFAULT_TEMPLATES)
   const [loading, setLoading] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [testModalTemplate, setTestModalTemplate] = useState<Template | null>(null)
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(DEFAULT_TEMPLATES[0])
@@ -88,6 +89,26 @@ export default function TemplatesPage() {
       })
       .catch(() => {})
       .finally(() => setLoading(false))
+  }
+
+  // Pulls the live template list + approval statuses from Meta Cloud API and
+  // upserts them locally; a no-op with a clear message when Meta env is unset.
+  const syncWithMeta = async () => {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/templates/sync', { method: 'POST' })
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        showSuccess(data.message || `Synced ${data.syncedCount ?? 0} templates from Meta`)
+      } else {
+        showError(data?.error || 'Template sync failed')
+      }
+    } catch {
+      showError('Template sync failed')
+    } finally {
+      setSyncing(false)
+      fetchTemplates()
+    }
   }
 
   useEffect(() => {
@@ -125,9 +146,9 @@ export default function TemplatesPage() {
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={fetchTemplates}>
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
-            Sync with Meta
+          <Button variant="outline" size="sm" onClick={syncWithMeta} disabled={syncing}>
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing...' : 'Sync with Meta'}
           </Button>
           <Button size="sm" onClick={() => setIsCreateOpen(true)}>
             <Plus className="h-4 w-4 mr-1.5" />

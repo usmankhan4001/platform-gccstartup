@@ -26,21 +26,23 @@ export function SendTestModal({ isOpen, open, onClose, template }: SendTestModal
 
     setSending(true)
     try {
-      const res = await fetch('/api/crm/whatsapp', {
+      const res = await fetch('/api/templates/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          phone: phoneNumber.trim(),
-          template_name: template?.name,
-          message: template?.body || 'Test template dispatch',
+          to: phoneNumber.trim(),
+          templateName: template?.name,
+          languageCode: template?.language || 'en',
         }),
       })
-      if (res.ok) {
-        showSuccess('Test message dispatched via Meta WhatsApp')
+      const data = await res.json().catch(() => null)
+      if (res.ok && data?.success) {
+        showSuccess(data.message || 'Test message dispatched via Meta WhatsApp')
         onClose()
       } else {
-        showSuccess('Test simulated (Meta Cloud API ready)')
-        onClose()
+        // Surfaces the real reason — including the Meta-not-configured no-op —
+        // instead of pretending the send happened.
+        showError(data?.error || 'Failed to dispatch test')
       }
     } catch {
       showError('Failed to dispatch test')

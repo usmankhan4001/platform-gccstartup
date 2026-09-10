@@ -1,6 +1,6 @@
 import { db } from '@/lib/db'
-import { eq } from 'drizzle-orm'
-import { pages, posts } from '@gccstartup/db'
+import { and, eq } from 'drizzle-orm'
+import { pages, posts, redirects, site_settings } from '@gccstartup/db'
 
 export type SiteSettings = Record<string, any>
 export type ContactRouteItem = Record<string, any>
@@ -248,6 +248,11 @@ export async function getPostBySlug(slug: string, _options?: { draft?: boolean }
   return null
 }
 
+// No `countries` / `services` / `pricing_tiers` / `comparisons` / `business_models` /
+// `guides` tables exist in @gccstartup/db yet, so these have nothing to query.
+// Returning the empty value keeps the public site on the static catalogue fallbacks
+// in components/site/content/* until the tables are migrated.
+
 export async function getCountryBySlug(_slug: string): Promise<any> {
   return null
 }
@@ -273,6 +278,24 @@ export async function getGuideBySlug(_slug: string): Promise<any> {
 }
 
 export async function getSiteSettings(): Promise<SiteSettings> {
+  try {
+    const rows = await db
+      .select()
+      .from(site_settings)
+      .where(eq(site_settings.id, 1))
+      .limit(1)
+
+    const row = rows[0]
+    if (row) {
+      // Live settings win, but a NULL column must not blank out a default.
+      const live = Object.fromEntries(
+        Object.entries(row).filter(([, value]) => value !== null && value !== undefined)
+      )
+      return { ...DEFAULT_SETTINGS, ...live }
+    }
+  } catch (err) {
+    console.error('[db] getSiteSettings failed', err)
+  }
   return DEFAULT_SETTINGS
 }
 
@@ -289,18 +312,67 @@ export async function getAllGuides(): Promise<any[]> {
 }
 
 export async function getAllSitemapEntries(): Promise<any> {
-  return {}
+  try {
+    const [pageRows, postRows] = await Promise.all([
+      db
+        .select({ slug: pages.slug, seo_no_index: pages.seo_no_index, date_updated: pages.updated_at })
+        .from(pages)
+        .where(eq(pages.status, 'published')),
+      db
+        .select({ slug: posts.slug, seo_no_index: posts.seo_no_index, date_updated: posts.updated_at })
+        .from(posts)
+        .where(eq(posts.status, 'published')),
+    ])
+
+    // Only `pages` and `posts` have tables; the sitemap consumer treats every
+    // other collection key as optional (`?.` / `?? []`).
+    return { pages: pageRows, posts: postRows }
+  } catch (err) {
+    console.error('[db] getAllSitemapEntries failed', err)
+    return {}
+  }
 }
 
+// No `contact_routes` table exists yet; resolvePublicContact falls back to site settings.
 export async function getPublicContactRoutes(): Promise<any[]> {
   return []
 }
 
-export async function getRedirect(_slug: string): Promise<any> {
+export async function getRedirect(slug: string): Promise<any> {
+  try {
+    const rows = await db
+      .select()
+      .from(redirects)
+      .where(and(eq(redirects.source, slug), eq(redirects.enabled, true)))
+      .limit(1)
+
+    if (rows[0]) {
+      // Call sites read `to_path` (Directus-era field name); the column is `destination`.
+      return { ...rows[0], to_path: rows[0].destination }
+    }
+  } catch (err) {
+    console.error('[db] getRedirect failed', err)
+  }
   return null
 }
 
-export async function getPageById(_id: string): Promise<any> {
+export async function getPageById(id: string): Promise<any> {
+  try {
+    const rows = await db
+      .select()
+      .from(pages)
+      .where(eq(pages.id, id))
+      .limit(1)
+
+    if (rows[0]) {
+      return {
+        ...rows[0],
+        blocks: rows[0].blocks || { content: [], root: {} },
+      }
+    }
+  } catch (err) {
+    console.error('[db] getPageById failed', err)
+  }
   return null
 }
 

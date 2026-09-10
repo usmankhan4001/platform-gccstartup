@@ -5,16 +5,11 @@ import Link from 'next/link'
 import {
   Megaphone,
   Plus,
-  Trash2,
-  ExternalLink,
   CheckCircle2,
   Clock,
-  Sparkles,
   Send,
   RefreshCw,
-  TrendingUp,
-  Eye,
-  MessageSquare,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { formatShortDate } from '@/components/crm/types'
@@ -24,10 +19,11 @@ type Campaign = Record<string, any>
 
 const FILTERS = [
   { value: 'ALL', label: 'All Campaigns' },
-  { value: 'RUNNING', label: 'Running' },
-  { value: 'COMPLETED', label: 'Completed' },
-  { value: 'QUEUED', label: 'Queued' },
-  { value: 'DRAFT', label: 'Draft' },
+  { value: 'running', label: 'Running' },
+  { value: 'queued', label: 'Queued' },
+  { value: 'paused', label: 'Paused' },
+  { value: 'completed', label: 'Completed' },
+  { value: 'failed', label: 'Failed' },
 ]
 
 export default function CampaignsPage() {
@@ -53,11 +49,11 @@ export default function CampaignsPage() {
 
   const filtered = campaigns.filter((c) => filter === 'ALL' || c.status === filter)
 
-  // Totals
+  // Live totals from per-recipient outbox job counts
   const totalSent = campaigns.reduce((acc, c) => acc + (c.sentCount || 0), 0)
-  const totalDelivered = campaigns.reduce((acc, c) => acc + (c.deliveredCount || 0), 0)
-  const totalRead = campaigns.reduce((acc, c) => acc + (c.readCount || 0), 0)
-  const avgReadRate = totalDelivered > 0 ? Math.round((totalRead / totalDelivered) * 100) : 0
+  const totalQueued = campaigns.reduce((acc, c) => acc + (c.queuedCount || 0), 0)
+  const totalFailed = campaigns.reduce((acc, c) => acc + (c.failedCount || 0), 0)
+  const totalRecipients = campaigns.reduce((acc, c) => acc + (c.totalContacts || 0), 0)
 
   return (
     <div className="space-y-6">
@@ -97,31 +93,29 @@ export default function CampaignsPage() {
 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            <span>Delivered Rate</span>
+            <span>Delivered (Accepted)</span>
             <CheckCircle2 className="h-4 w-4 text-emerald-600" />
           </div>
-          <p className="mt-2 text-2xl font-bold text-emerald-600">
-            {totalSent > 0 ? `${Math.round((totalDelivered / totalSent) * 100)}%` : '98.5%'}
-          </p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{totalDelivered || totalSent} verified deliveries</p>
+          <p className="mt-2 text-2xl font-bold text-emerald-600">{totalSent}</p>
+          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Accepted by Meta Cloud API</p>
         </div>
 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            <span>Read Rate</span>
-            <Eye className="h-4 w-4 text-blue-600" />
+            <span>Queued</span>
+            <Clock className="h-4 w-4 text-blue-600" />
           </div>
-          <p className="mt-2 text-2xl font-bold text-blue-600">{avgReadRate || 74}%</p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">{totalRead || Math.round(totalSent * 0.74)} verified reads</p>
+          <p className="mt-2 text-2xl font-bold text-blue-600">{totalQueued}</p>
+          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Awaiting rate-limited dispatch</p>
         </div>
 
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
           <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-            <span>Reply Rate</span>
-            <MessageSquare className="h-4 w-4 text-purple-600" />
+            <span>Failed</span>
+            <AlertCircle className="h-4 w-4 text-rose-600" />
           </div>
-          <p className="mt-2 text-2xl font-bold text-purple-600">18.5%</p>
-          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Direct customer replies</p>
+          <p className="mt-2 text-2xl font-bold text-rose-600">{totalFailed}</p>
+          <p className="mt-1 text-[11px] text-[var(--text-secondary)]">Of {totalRecipients} targeted recipients</p>
         </div>
       </div>
 
@@ -151,7 +145,7 @@ export default function CampaignsPage() {
               <th className="py-3 px-4">Status</th>
               <th className="py-3 px-4">Recipients</th>
               <th className="py-3 px-4">Delivered</th>
-              <th className="py-3 px-4">Read Rate</th>
+              <th className="py-3 px-4">Failed</th>
               <th className="py-3 px-4">Date</th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
@@ -192,24 +186,26 @@ export default function CampaignsPage() {
                   <td className="py-3.5 px-4">
                     <span
                       className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                        c.status === 'COMPLETED'
+                        c.status === 'completed'
                           ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                          : c.status === 'RUNNING'
+                          : c.status === 'running'
                           ? 'bg-blue-50 text-blue-700 border border-blue-200 animate-pulse'
+                          : c.status === 'paused'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : c.status === 'failed'
+                          ? 'bg-rose-50 text-rose-700 border border-rose-200'
                           : 'bg-slate-100 text-slate-600'
                       }`}
                     >
-                      {c.status || 'DRAFT'}
+                      {c.status || 'queued'}
                     </span>
                   </td>
                   <td className="py-3.5 px-4 font-mono font-medium">{c.totalContacts || c.total || 0}</td>
                   <td className="py-3.5 px-4 font-mono text-emerald-600 font-semibold">
-                    {c.deliveredCount || 0}
+                    {c.sentCount || 0}
                   </td>
-                  <td className="py-3.5 px-4 font-mono text-blue-600 font-semibold">
-                    {c.deliveredCount > 0
-                      ? `${Math.round(((c.readCount || 0) / c.deliveredCount) * 100)}%`
-                      : '0%'}
+                  <td className="py-3.5 px-4 font-mono text-rose-600 font-semibold">
+                    {c.failedCount || 0}
                   </td>
                   <td className="py-3.5 px-4 text-[11px] text-[var(--text-tertiary)]">
                     {formatShortDate(c.createdAt || c.created_at)}

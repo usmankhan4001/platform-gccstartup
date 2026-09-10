@@ -28,6 +28,16 @@ export function VariableMapper({
     components = [];
   }
 
+  // DB rows store denormalized header/body/footer columns rather than Meta
+  // components — rebuild the component shape the mapper expects.
+  if (!Array.isArray(components) || components.length === 0) {
+    components = [
+      template.header ? { type: 'HEADER', text: template.header } : null,
+      template.body ? { type: 'BODY', text: template.body } : null,
+      template.footer ? { type: 'FOOTER', text: template.footer } : null,
+    ].filter(Boolean);
+  }
+
   const headerComp = components.find((c) => c.type === 'HEADER');
   const bodyComp = components.find((c) => c.type === 'BODY');
 
@@ -88,33 +98,15 @@ export function VariableMapper({
                     className="w-full px-3 py-1.5 h-9 text-xs rounded-lg border border-input bg-transparent outline-none focus:ring-2 focus:ring-ring"
                   >
                     <option value="">Select contact field...</option>
-                    <optgroup label="Standard Contact Fields">
-                      <option value="firstName">Contact First Name</option>
-                      <option value="lastName">Contact Last Name</option>
-                      <option value="fullName">Contact Full Name</option>
-                      <option value="phoneNumber">Contact Phone Number</option>
-                      <option value="email">Contact Email</option>
-                    </optgroup>
-                    <optgroup label="Dynamic Custom Attributes">
-                      <option value="custom.company">Company Name</option>
-                      <option value="custom.city">City / Location</option>
-                      <option value="custom.order_id">Order ID</option>
-                      <option value="custom.spend">Total Spend Amount</option>
-                      <option value="custom.tier">VIP Membership Tier</option>
-                    </optgroup>
+                    {/* Only fields the WhatsApp dispatcher can resolve per contact —
+                        anything else would silently render the fallback value. */}
+                    <option value="first_name">Contact First Name</option>
+                    <option value="last_name">Contact Last Name</option>
+                    <option value="full_name">Contact Full Name</option>
+                    <option value="phone">Contact Phone Number</option>
+                    <option value="email">Contact Email</option>
+                    <option value="company">Company Name</option>
                   </select>
-
-                  {/* Or allow typing custom static fallback if needed */}
-                  {!['firstName', 'lastName', 'fullName', 'phoneNumber', 'email'].includes(currentVal) &&
-                    !currentVal.startsWith('custom.') && (
-                      <input
-                        type="text"
-                        placeholder="Or enter static text value..."
-                        value={currentVal}
-                        onChange={(e) => onChangeMapping(varIdx, e.target.value)}
-                        className="w-full px-2.5 py-1 h-9 text-xs rounded-lg border border-input bg-transparent"
-                      />
-                    )}
                 </div>
               );
             })}

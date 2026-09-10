@@ -297,7 +297,10 @@ export function ChatWindow({ contact, onRefreshList, onBackMobile }: ChatWindowP
     fetch('/api/templates')
       .then((res) => res.json())
       .then((data) => {
-        const list = Array.isArray(data) ? data.filter((t) => t.status === 'APPROVED') : [];
+        // Pass the raw list — TemplatePicker filters Meta approval itself
+        // (DB stores lowercase 'approved', so a hardcoded 'APPROVED' match
+        // would empty the picker entirely).
+        const list = Array.isArray(data) ? data : [];
         setTemplates(list);
         if (list.length > 0 && !selectedTemplate) {
           setSelectedTemplate(list[0]);

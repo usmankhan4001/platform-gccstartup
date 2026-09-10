@@ -42,10 +42,11 @@ export function CampaignWizard({ templates = [], groups = [], tags = [] }: Campa
   const [excludeTagIds, setExcludeTagIds] = useState<string[]>([]);
 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  // Keys mirror lib/whatsapp/dispatcher's contact field map so mapped variables
+  // resolve at send time instead of degrading to the fallback value.
   const [variableMappings, setVariableMappings] = useState<Record<string, string>>({
-    '1': 'firstName',
-    '2': 'custom.company',
-    '3': 'custom.city',
+    '1': 'first_name',
+    '2': 'company',
   });
   const [headerMediaUrl, setHeaderMediaUrl] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
@@ -502,11 +503,9 @@ export function CampaignWizard({ templates = [], groups = [], tags = [] }: Campa
               </h4>
               {selectedTemplate && (
                 <WhatsAppMockupPreview
-                  templateName={selectedTemplate.name}
-                  category={selectedTemplate.category}
-                  components={selectedTemplate.components}
+                  template={selectedTemplate}
                   headerMediaUrl={headerMediaUrl}
-                  sampleVariables={{ '1': 'Rashid', '2': 'Apex Ventures', '3': 'Dubai QFZP' }}
+                  sampleValues={{ '1': 'Rashid', '2': 'Apex Ventures', '3': 'Dubai QFZP' }}
                 />
               )}
             </div>

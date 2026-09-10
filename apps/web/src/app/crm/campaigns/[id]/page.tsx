@@ -5,20 +5,13 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   ArrowLeft,
-  Send,
-  CheckCircle2,
-  Eye,
-  MessageSquare,
   AlertCircle,
   Play,
   Pause,
   XCircle,
   RefreshCw,
-  Clock,
-  Sparkles,
   Users,
   Search,
-  Filter,
   CheckCheck,
   ShieldCheck,
   FileText,
@@ -135,14 +128,14 @@ export default function CampaignDetailPage({ params }: PageProps) {
     )
   }
 
-  const isRunning = campaign.status === 'sending' || campaign.status === 'RUNNING' || campaign.status === 'scheduled'
-  const isPaused = campaign.status === 'paused' || campaign.status === 'PAUSED'
-  const isCompleted = campaign.status === 'sent' || campaign.status === 'COMPLETED'
+  const isRunning = campaign.status === 'running' || campaign.status === 'queued'
+  const isPaused = campaign.status === 'paused'
+  const isCompleted = campaign.status === 'completed' || campaign.status === 'cancelled'
+  const isFailed = campaign.status === 'failed'
   const total = campaign.recipientCount || stats?.total || 0
-  const sent = stats?.sent ?? (isCompleted ? total : 0)
-  const delivered = stats?.delivered ?? (isCompleted ? Math.round(total * 0.96) : 0)
-  const read = stats?.read ?? (isCompleted ? Math.round(total * 0.74) : 0)
-  const replied = stats?.replied ?? (isCompleted ? Math.round(total * 0.18) : 0)
+  const sent = stats?.sent ?? 0
+  const delivered = stats?.delivered ?? 0
+  const read = stats?.read ?? 0
   const failed = stats?.failed ?? 0
 
   const progressPct = total > 0 ? Math.min(100, Math.round((sent / total) * 100)) : 100
@@ -171,12 +164,14 @@ export default function CampaignDetailPage({ params }: PageProps) {
               <span
                 className={`inline-flex rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   isCompleted
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : isRunning
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200 animate-pulse'
+                    ? campaign.status === 'cancelled'
+                      ? 'bg-slate-100 text-slate-700 border border-slate-200'
+                      : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : isFailed
+                    ? 'bg-rose-50 text-rose-700 border border-rose-200'
                     : isPaused
                     ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                    : 'bg-slate-100 text-slate-700 border border-slate-200'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200 animate-pulse'
                 }`}
               >
                 {campaign.status}
@@ -184,13 +179,22 @@ export default function CampaignDetailPage({ params }: PageProps) {
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
               Template: <span className="font-mono font-semibold text-[var(--navy)]">{campaign.templateName || 'WhatsApp Broadcast'}</span> &bull; Launched {formatDateTime(campaign.createdAt)}
+              {campaign.scheduledAt && !isCompleted && (
+                <> &bull; Scheduled for {formatDateTime(campaign.scheduledAt)}</>
+              )}
             </p>
           </div>
         </div>
 
         {/* Action Controls */}
         <div className="flex items-center gap-2">
-          {isRunning && (
+          {campaign.status === 'queued' && (
+            <Button size="sm" onClick={() => handleAction('START')} disabled={actionLoading}>
+              <Play className="h-3.5 w-3.5 mr-1" />
+              {campaign.scheduledAt ? 'Send Now' : 'Start Dispatch'}
+            </Button>
+          )}
+          {campaign.status === 'running' && (
             <Button variant="outline" size="sm" onClick={() => handleAction('PAUSE')} disabled={actionLoading}>
               <Pause className="h-3.5 w-3.5 mr-1" />
               Pause
@@ -202,13 +206,13 @@ export default function CampaignDetailPage({ params }: PageProps) {
               Resume
             </Button>
           )}
-          {!isCompleted && campaign.status !== 'cancelled' && (
+          {!isCompleted && !isFailed && (
             <Button variant="outline" size="sm" onClick={() => handleAction('CANCEL')} disabled={actionLoading} className="text-rose-600 hover:bg-rose-50">
               <XCircle className="h-3.5 w-3.5 mr-1" />
               Cancel
             </Button>
           )}
-          {(isCompleted || campaign.status === 'draft' || campaign.status === 'cancelled') && (
+          {(isCompleted || isFailed) && (
             <Button variant="outline" size="sm" onClick={handleDelete} disabled={actionLoading} className="text-rose-600 hover:bg-rose-50">
               <Trash2 className="h-3.5 w-3.5 mr-1" />
               Delete
@@ -251,19 +255,19 @@ export default function CampaignDetailPage({ params }: PageProps) {
           <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3 text-center">
             <span className="block text-[10px] font-bold uppercase tracking-wider text-emerald-800">Delivered</span>
             <p className="mt-1 font-mono text-xl font-bold text-emerald-700">{delivered}</p>
-            <span className="text-[10px] font-bold text-emerald-800">{stats?.deliveryRate || '98.5'}% rate</span>
+            <span className="text-[10px] font-bold text-emerald-800">{stats?.deliveryRate || '0.0'}% accepted</span>
           </div>
 
           <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-3 text-center">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-800">Read</span>
-            <p className="mt-1 font-mono text-xl font-bold text-blue-700">{read}</p>
-            <span className="text-[10px] font-bold text-blue-800">{stats?.readRate || '74.2'}% read rate</span>
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-blue-800">Queued</span>
+            <p className="mt-1 font-mono text-xl font-bold text-blue-700">{stats?.queued ?? 0}</p>
+            <span className="text-[10px] font-bold text-blue-800">awaiting dispatch</span>
           </div>
 
           <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-3 text-center">
-            <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-800">Replied</span>
-            <p className="mt-1 font-mono text-xl font-bold text-purple-700">{replied}</p>
-            <span className="text-[10px] font-bold text-purple-800">{stats?.replyRate || '18.5'}% reply rate</span>
+            <span className="block text-[10px] font-bold uppercase tracking-wider text-purple-800">Read</span>
+            <p className="mt-1 font-mono text-xl font-bold text-purple-700">{read}</p>
+            <span className="text-[10px] font-bold text-purple-800">{stats?.readRate || '0.0'}% tracked</span>
           </div>
 
           <div className="rounded-xl border border-rose-200 bg-rose-50/50 p-3 text-center">
@@ -301,8 +305,7 @@ export default function CampaignDetailPage({ params }: PageProps) {
                 className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1 text-xs text-[var(--text)] focus:outline-none"
               >
                 <option value="ALL">All Statuses</option>
-                <option value="DELIVERED">Delivered</option>
-                <option value="READ">Read</option>
+                <option value="QUEUED">Queued</option>
                 <option value="SENT">Sent</option>
                 <option value="FAILED">Failed</option>
               </select>
@@ -337,13 +340,11 @@ export default function CampaignDetailPage({ params }: PageProps) {
                       <td className="py-2.5 px-4">
                         <span
                           className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
-                            s.status === 'delivered' || s.status === 'DELIVERED'
+                            s.status === 'sent'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : s.status === 'read' || s.status === 'READ'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : s.status === 'sent' || s.status === 'SENT'
-                              ? 'bg-slate-100 text-slate-700'
-                              : 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : s.status === 'failed'
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
                           }`}
                         >
                           <CheckCheck className="h-3 w-3" />
@@ -354,7 +355,7 @@ export default function CampaignDetailPage({ params }: PageProps) {
                         {s.sentAt || s.createdAt ? formatTimeAgo(new Date(s.sentAt || s.createdAt)) : 'Queued'}
                       </td>
                       <td className="py-2.5 px-4 text-right text-[11px] text-[var(--text-secondary)]">
-                        {s.failureReason || 'Meta Cloud API 200 OK'}
+                        {s.failureReason || (s.status === 'sent' ? 'Meta Cloud API 200 OK' : '—')}
                       </td>
                     </tr>
                   ))

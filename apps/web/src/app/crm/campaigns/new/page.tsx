@@ -22,7 +22,12 @@ export default function NewCampaignPage() {
       fetch('/api/tags').then((res) => res.json()).catch(() => []),
     ])
       .then(([tpls, grps, tgs]) => {
-        setTemplates(Array.isArray(tpls) ? tpls : [])
+        // Only Meta-approved templates can be broadcast — the API rejects the
+        // rest at create time, so filter here to fail in the UI instead.
+        const approved = (Array.isArray(tpls) ? tpls : []).filter(
+          (t: AnyRecord) => String(t?.status || '').toLowerCase() === 'approved'
+        )
+        setTemplates(approved)
         setGroups(Array.isArray(grps) ? grps : [])
         setTags(Array.isArray(tgs) ? tgs : [])
       })

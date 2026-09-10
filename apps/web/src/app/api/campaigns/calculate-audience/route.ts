@@ -1,8 +1,9 @@
+// Live audience count for the campaign wizard. Delegates to the same resolver
+// the dispatcher uses at send time (phone + not deleted + tag filters), so the
+// pre-flight number can never drift from what a launch actually delivers.
 import { NextRequest, NextResponse } from 'next/server'
-import { and, eq, isNotNull, isNull, notExists, or, sql } from 'drizzle-orm'
 import { authGuard, AuthError } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { contacts, email_suppressions } from '@gccstartup/db'
+import { resolveAudience } from '@/lib/whatsapp/dispatcher'
 
 type AudienceFilter = {
   sendToAll?: boolean
@@ -23,8 +24,8 @@ function parseAudienceFilter(value: unknown): AudienceFilter {
   }
   if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) return {}
   const raw = candidate as Record<string, unknown>
-  const toStringArray = (input: unknown): string[] | undefined =>
-    Array.isArray(input) ? input.filter((t): t is string => typeof t === 'string' && t.trim() !== '') : undefined
+  const toStringArray = (input: unknown): string[] =>
+    Array.isArray(input) ? input.filter((t): t is string => typeof t === 'string' && t.trim() !== '') : []
   return {
     sendToAll: raw.sendToAll === true,
     includeGroups: toStringArray(raw.includeGroups),
@@ -37,48 +38,35 @@ function parseAudienceFilter(value: unknown): AudienceFilter {
 export async function POST(request: NextRequest) {
   try {
     await authGuard(request)
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    throw error
+  }
+
+  try {
     const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
     if (!body) return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
 
-    const filter = parseAudienceFilter(body.audienceFilter)
-    const include = [...new Set([...(filter.includeGroups || []), ...(filter.includeTags || [])])]
-    const exclude = [...new Set([...(filter.excludeGroups || []), ...(filter.excludeTags || [])])]
+    const wizardFilter = parseAudienceFilter(body.audienceFilter)
 
-    const conditions = [
-      isNull(contacts.deleted_at),
-      isNotNull(contacts.email),
-      eq(contacts.email_consent, 'granted'),
-      isNull(contacts.unsubscribed_at),
-      notExists(
-        db
-          .select({ one: sql`1` })
-          .from(email_suppressions)
-          .where(eq(email_suppressions.email, contacts.email)),
-      ),
-    ]
-    if (include.length) {
-      const includeExpr = or(...include.map((tag) => sql`${contacts.tags} @> ${JSON.stringify(tag)}::jsonb`))
-      if (includeExpr) conditions.push(includeExpr)
-    }
-    for (const tag of exclude) {
-      conditions.push(sql`NOT (${contacts.tags} @> ${JSON.stringify(tag)}::jsonb)`)
-    }
+    // Groups and tags are the same mechanism (contacts.tags jsonb) — union each
+    // side exactly like the campaigns POST does, so count == dispatch.
+    const includeTags = [...new Set([...(wizardFilter.includeGroups || []), ...(wizardFilter.includeTags || [])])]
+    const excludeTags = [...new Set([...(wizardFilter.excludeGroups || []), ...(wizardFilter.excludeTags || [])])]
+    const filter =
+      wizardFilter.sendToAll || includeTags.length === 0
+        ? excludeTags.length
+          ? { excludeTags }
+          : {}
+        : { includeTags, excludeTags }
 
-    const audience = await db
-      .select({
-        id: contacts.id,
-        firstName: contacts.first_name,
-        lastName: contacts.last_name,
-        phone: contacts.phone,
-        email: contacts.email,
-      })
-      .from(contacts)
-      .where(and(...conditions))
-      .limit(5000)
+    const audience = await resolveAudience(null, filter)
 
     const sampleContacts = audience.slice(0, 5).map((c) => ({
       id: c.id,
-      name: [c.firstName, c.lastName].filter(Boolean).join(' ') || 'Customer',
+      name: [c.first_name, c.last_name].filter(Boolean).join(' ') || 'Customer',
       phone: c.phone,
       email: c.email,
     }))

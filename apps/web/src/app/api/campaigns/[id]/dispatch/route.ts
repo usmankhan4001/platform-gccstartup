@@ -1,156 +1,175 @@
+// Campaign dispatch control. START/RESUME enqueue a durable `campaign_dispatch`
+// outbox job that the worker drains into lib/whatsapp/dispatcher (rate-limited
+// Meta sends, pause-aware loop, per-recipient jobs). PAUSE delegates to the
+// dispatcher's pause lock; CANCEL stops the loop, fails pending jobs and marks
+// the campaign cancelled. Nothing here sends inline — a 10k-recipient broadcast
+// must never hold an HTTP request open.
 import { NextRequest, NextResponse } from 'next/server'
-import { randomUUID } from 'crypto'
-import { and, eq, isNotNull, isNull, notExists, or, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { authGuard, AuthError } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { contacts, email_campaigns, email_suppressions, outbox_jobs } from '@gccstartup/db'
+import { flows, outbox_jobs } from '@gccstartup/db'
+import { pauseCampaign } from '@/lib/whatsapp/dispatcher'
 
 type Params = { params: Promise<{ id: string }> }
 
-type AudienceFilter = {
-  sendToAll?: boolean
-  includeGroups?: string[]
-  includeTags?: string[]
-  excludeGroups?: string[]
-  excludeTags?: string[]
+async function loadCampaign(id: string) {
+  const rows = await db
+    .select()
+    .from(flows)
+    .where(and(eq(flows.id, id), sql`${flows.trigger_config}->>'entityKind' = 'campaign'`))
+    .limit(1)
+  return rows[0] ?? null
 }
 
-function parseAudienceFilter(value: unknown): AudienceFilter {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-  const raw = value as Record<string, unknown>
-  const toStringArray = (input: unknown): string[] | undefined =>
-    Array.isArray(input) ? input.filter((t): t is string => typeof t === 'string' && t.trim() !== '') : undefined
-  return {
-    sendToAll: raw.sendToAll === true,
-    includeGroups: toStringArray(raw.includeGroups),
-    includeTags: toStringArray(raw.includeTags),
-    excludeGroups: toStringArray(raw.excludeGroups),
-    excludeTags: toStringArray(raw.excludeTags),
-  }
+async function patchConfig(id: string, cfg: Record<string, unknown>, patch: Record<string, unknown>) {
+  await db
+    .update(flows)
+    .set({ trigger_config: { ...cfg, ...patch }, updated_at: new Date() })
+    .where(eq(flows.id, id))
 }
 
-function audienceConditions(filter: AudienceFilter) {
-  const include = [...new Set([...(filter.includeGroups || []), ...(filter.includeTags || [])])]
-  const exclude = [...new Set([...(filter.excludeGroups || []), ...(filter.excludeTags || [])])]
-
-  const conditions = [
-    isNull(contacts.deleted_at),
-    isNotNull(contacts.email),
-    eq(contacts.email_consent, 'granted'),
-    isNull(contacts.unsubscribed_at),
-    notExists(
-      db
-        .select({ one: sql`1` })
-        .from(email_suppressions)
-        .where(eq(email_suppressions.email, contacts.email)),
-    ),
-  ]
-  if (include.length) {
-    const includeExpr = or(...include.map((tag) => sql`${contacts.tags} @> ${JSON.stringify(tag)}::jsonb`))
-    if (includeExpr) conditions.push(includeExpr)
-  }
-  for (const tag of exclude) {
-    conditions.push(sql`NOT (${contacts.tags} @> ${JSON.stringify(tag)}::jsonb)`)
-  }
-  return and(...conditions)
+// Fails every pending job for this campaign so an interrupted or cancelled
+// broadcast never leaves phantom recipients queued behind a terminal state.
+async function failPendingJobs(id: string, reason: string): Promise<number> {
+  const failed = await db
+    .update(outbox_jobs)
+    .set({ status: 'failed', last_error: reason, completed_at: new Date(), updated_at: new Date() })
+    .where(
+      and(
+        sql`${outbox_jobs.payload}->>'campaignId' = ${id}`,
+        eq(outbox_jobs.status, 'pending'),
+        sql`${outbox_jobs.job_type} IN ('campaign_dispatch', 'send_whatsapp')`,
+      ),
+    )
+    .returning({ id: outbox_jobs.id })
+  return failed.length
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  let user: { id: string }
   try {
-    const user = await authGuard(request, ['admin'])
+    user = await authGuard(request, ['admin'])
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status })
+    }
+    throw error
+  }
+
+  try {
     const { id } = await params
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>
     const action = typeof body.action === 'string' ? body.action.toUpperCase() : ''
 
-    const campaignRows = await db.select().from(email_campaigns).where(eq(email_campaigns.id, id)).limit(1)
-    const campaign = campaignRows[0]
-    if (!campaign) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    const flow = await loadCampaign(id)
+    if (!flow) return NextResponse.json({ error: 'Campaign not found' }, { status: 404 })
+    const cfg = (flow.trigger_config || {}) as Record<string, unknown>
+    const runState = String(cfg.run_state || 'queued')
 
     if (action === 'START' || action === 'RESUME') {
-      if (campaign.status === 'sending') {
+      if (runState === 'running') {
         return NextResponse.json({ error: 'Campaign is already sending' }, { status: 409 })
       }
-      if (campaign.status === 'sent' || campaign.status === 'cancelled') {
-        return NextResponse.json({ error: `Campaign is ${campaign.status} and cannot be restarted` }, { status: 409 })
+      if (runState === 'completed' || runState === 'failed') {
+        return NextResponse.json({ error: `Campaign is ${runState} and cannot be restarted` }, { status: 409 })
+      }
+      if (action === 'RESUME' && runState !== 'paused') {
+        return NextResponse.json({ error: 'Only paused campaigns can be resumed' }, { status: 409 })
       }
 
-      // Audience is resolved fresh at dispatch time with consent and suppression
-      // enforced in the query — a stale saved count is never trusted.
-      const filter = parseAudienceFilter(campaign.audience_filter)
-      const audience = await db
-        .select({ id: contacts.id, email: contacts.email })
-        .from(contacts)
-        .where(audienceConditions(filter))
+      // Re-use a pending dispatch job when one exists (e.g. launching a scheduled
+      // broadcast early) instead of queueing a duplicate; otherwise create one.
+      // The unique-per-attempt key keeps retries and resumes conflict-free.
+      const existingJobs = await db
+        .select({ id: outbox_jobs.id })
+        .from(outbox_jobs)
+        .where(
+          and(
+            eq(outbox_jobs.job_type, 'campaign_dispatch'),
+            sql`${outbox_jobs.payload}->>'campaignId' = ${id}`,
+            eq(outbox_jobs.status, 'pending'),
+          ),
+        )
+        .limit(1)
 
-      await db
-        .update(email_campaigns)
-        .set({
-          status: 'sending',
-          started_at: campaign.started_at || new Date(),
-          recipient_count: audience.length,
-          error: null,
-          updated_by: user.id,
-          updated_at: new Date(),
-        })
-        .where(eq(email_campaigns.id, id))
-
-      // One durable outbox job per recipient, deduped by idempotency key so a
-      // retried dispatch never double-sends to a contact.
-      const chunkSize = 500
-      let queued = 0
-      for (let i = 0; i < audience.length; i += chunkSize) {
-        const chunk = audience.slice(i, i + chunkSize)
+      let queued: number
+      if (existingJobs[0]) {
+        await db
+          .update(outbox_jobs)
+          .set({ next_run_at: new Date(), updated_at: new Date() })
+          .where(eq(outbox_jobs.id, existingJobs[0].id))
+        queued = 1
+      } else {
         const inserted = await db
           .insert(outbox_jobs)
-          .values(
-            chunk.map((recipient) => ({
-              id: randomUUID(),
-              job_type: 'send_email',
-              payload: { campaignId: id, contactId: recipient.id, to: recipient.email },
-              status: 'pending',
-              next_run_at: new Date(),
-              idempotency_key: `campaign:${id}:contact:${recipient.id}`,
-            })),
-          )
+          .values({
+            id: crypto.randomUUID(),
+            job_type: 'campaign_dispatch',
+            payload: { campaignId: id },
+            status: 'pending',
+            next_run_at: new Date(),
+            idempotency_key: `campaign_dispatch:${id}:${Date.now()}`,
+          })
           .onConflictDoNothing({ target: outbox_jobs.idempotency_key })
           .returning({ id: outbox_jobs.id })
-        queued += inserted.length
+        queued = inserted.length
       }
 
-      return NextResponse.json({ success: true, status: 'sending', recipients: audience.length, queued })
+      await patchConfig(id, cfg, { run_state: 'queued', cancelled: false, updated_by: user.id })
+
+      return NextResponse.json({
+        success: true,
+        status: 'queued',
+        queued,
+        message: queued
+          ? 'Dispatch queued — the worker will start sending within a minute'
+          : 'Dispatch is already queued',
+      })
     }
 
     if (action === 'PAUSE') {
-      const paused = await db
-        .update(email_campaigns)
-        .set({ status: 'paused', updated_by: user.id, updated_at: new Date() })
-        .where(sql`${email_campaigns.id} = ${id} AND ${email_campaigns.status} IN ('draft', 'scheduled', 'sending')`)
-        .returning({ id: email_campaigns.id })
-      if (!paused.length) {
-        return NextResponse.json({ error: 'Campaign is not in a pausable state' }, { status: 409 })
+      if (runState === 'running') {
+        const result = await pauseCampaign(null, id)
+        if (!result.success) {
+          return NextResponse.json({ error: result.error || 'Could not pause campaign' }, { status: 409 })
+        }
+        return NextResponse.json({ success: true, status: 'paused' })
       }
-      return NextResponse.json({ success: true, status: 'paused' })
+      if (runState === 'queued') {
+        // Not started yet: stop the pending dispatch job before the worker picks it up.
+        await failPendingJobs(id, 'Paused before dispatch')
+        await patchConfig(id, cfg, { run_state: 'paused', updated_by: user.id })
+        return NextResponse.json({ success: true, status: 'paused' })
+      }
+      return NextResponse.json({ error: 'Campaign is not in a pausable state' }, { status: 409 })
     }
 
     if (action === 'CANCEL') {
-      const cancelled = await db
-        .update(email_campaigns)
-        .set({ status: 'cancelled', completed_at: new Date(), updated_by: user.id, updated_at: new Date() })
-        .where(
-          sql`${email_campaigns.id} = ${id} AND ${email_campaigns.status} IN ('draft', 'scheduled', 'sending', 'paused')`,
-        )
-        .returning({ id: email_campaigns.id })
-      if (!cancelled.length) {
+      if (runState === 'completed' || runState === 'failed') {
         return NextResponse.json({ error: 'Campaign is already terminal' }, { status: 409 })
       }
+
+      // Pause first so an in-flight dispatch loop stops between sends, then
+      // fail the remaining jobs and close the campaign out.
+      if (runState === 'running') {
+        await pauseCampaign(null, id).catch((error) => {
+          console.error('[campaigns/[id]/dispatch] pause during cancel failed', error)
+        })
+      }
+      const cancelledJobs = await failPendingJobs(id, 'Cancelled by user')
+      await patchConfig(id, cfg, {
+        run_state: 'completed',
+        cancelled: true,
+        failed_count: (Number(cfg.failed_count) || 0) + cancelledJobs,
+        updated_by: user.id,
+      })
+
       return NextResponse.json({ success: true, status: 'cancelled' })
     }
 
     return NextResponse.json({ error: 'Invalid action parameter' }, { status: 400 })
   } catch (error) {
-    if (error instanceof AuthError) {
-      return NextResponse.json({ error: error.message }, { status: error.status })
-    }
     console.error('[campaigns/[id]/dispatch] failed', error)
     return NextResponse.json({ error: 'Failed to process campaign action' }, { status: 500 })
   }

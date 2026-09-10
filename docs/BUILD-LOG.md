@@ -22,6 +22,32 @@
 
 ## Log
 
+### 2026-09-10 — PHASE 5 — Agent 5 (retry): Email engine + automations canvas on real data
+**Agent:** Agent 5 (Email Engine & Automations Canvas)
+**Files changed:**
+- `apps/web/src/app/api/email/config/route.ts` (new — SES env config report)
+- `apps/web/src/app/api/email/stats/route.ts` (new — deliverability telemetry from `email_sends`)
+- `apps/web/src/app/api/email/sequences/route.ts` (new — canonical sequences joined to `flows`/`flow_enrollments` + POST provisioning)
+- `apps/web/src/app/api/email/test-send/route.ts` (new — real SES test send via `renderEmail` + `createSESProvider`)
+- `apps/web/src/app/api/flows/[id]/logs/route.ts` (new — per-flow engine runs from `flow_logs`)
+- `apps/web/src/components/crm/EmailOperationsView.tsx` (data layer swapped to real APIs)
+- `apps/web/src/components/crm/VisualWorkflowBuilder.tsx` (rewritten on the catalog; load/save real flows)
+- `components/automation/{types,nodeCatalog,sequences,simulate}.ts` — no longer orphaned (all four imported)
+
+**What was done:**
+1. **Email engine → real DB.** `AUTOMATED_SEQUENCES` and `INITIAL_SUPPRESSIONS` constants deleted. Sequences now come from `/api/email/sequences` (the four canonical definitions joined to provisioning flows via `trigger_config.sequenceKey`, with real `flow_enrollments` counts); suppressions load/add/remove through the existing `/api/email/suppressions` CRUD; templates load from `/api/email/templates` (rows whose `blocks` parse into a Puck document are editable in the builder). `handleSendTest` POSTs the active document to `/api/email/test-send`, which renders via `renderEmail()` and sends through `createSESProvider()`; it reports `not_configured` (with the missing env var names), `suppressed` (409), or a real SES message id. Telemetry KPIs and the infrastructure cards read `/api/email/stats` (aggregated from `email_sends`) and `/api/email/config` instead of fabricated benchmarks.
+2. **Flow builder load/save.** On mount the builder fetches `/api/flows` into a "Saved flows" selector; selecting one loads its nodes/edges onto the canvas (legacy node shapes normalized, unknown types render as placeholders instead of disappearing); Save POSTs for new canvases and PUTs when a flow is loaded; `/crm/flows?flow=<id>` deep-links into a saved flow.
+3. **Catalog adopted, not deleted.** The four orphaned `components/automation/` files now power the builder: the palette lists `NODE_DEFINITIONS` grouped by kind with `summary()` rendering, the inspector renders each definition's `ConfigField[]` against `data.config`, the replay debugger walks the graph with `simulateFlow()` (consent gates + condition routing, unreached nodes greyed), and the sequences API provisions definitions into catalog-native canvas nodes.
+4. **Execution logs.** New `/api/flows/[id]/logs` groups real `flow_logs` by enrollment into runs (contact, status, per-step results); the logs panel has Simulator/Engine tabs with honest empty states.
+
+**Why:** the email hub and flow builder were demo-data-backed — static sequences, fake suppression rows, and a `setTimeout` that claimed SES success without sending. The engine tables (`flows`, `flow_enrollments`, `flow_logs`, `email_sends`, `email_suppressions`) already existed; this wires the UI to them.
+
+**Decisions:** the catalog was integrated rather than deleted — it was complete and coherent with `simulate.ts`/`sequences.ts`. The three starter email documents remain as clearly-labeled "starter" quick-starts so the builder is never blank on an empty DB; DB templates take precedence. Sequence open/click rates render "—" instead of invented percentages because flow sends are not per-flow open-tracked yet. Test sends are refused for suppressed addresses and never write `email_sends` (campaign_id is NOT NULL and a test is not a campaign).
+
+**Tests:** `pnpm typecheck` green (3/3 projects); `pnpm test` 17/17 passing (7 files).
+
+**Blockers:** none.
+
 ### 2026-09-07 — PLANNING — Project scaffold and build plan
 **Agent:** Lead Architect
 **Files changed:**
@@ -1085,3 +1111,72 @@ state instead of throwing.
 tracing with `EPERM: operation not permitted, symlink` - a Windows host
 permission issue in `.next/standalone`, unrelated to these changes. Compilation
 and static generation both succeed.
+
+### 2026-09-10 — PHASE 6 — Unified inbox & marketing broadcasts: real dispatch wiring
+**Agent:** Agent 4 (retry) — Unified Inbox & Marketing Broadcasts
+**Files changed:**
+- `apps/web/src/app/api/campaigns/route.ts` (rewritten)
+- `apps/web/src/app/api/campaigns/[id]/route.ts` (rewritten)
+- `apps/web/src/app/api/campaigns/[id]/dispatch/route.ts` (rewritten)
+- `apps/web/src/app/api/campaigns/calculate-audience/route.ts` (rewritten)
+- `apps/web/src/components/campaigns/CampaignWizard.tsx`
+- `apps/web/src/components/campaigns/VariableMapper.tsx`
+- `apps/web/src/app/crm/campaigns/page.tsx`
+- `apps/web/src/app/crm/campaigns/new/page.tsx`
+- `apps/web/src/app/crm/campaigns/[id]/page.tsx`
+- `apps/web/src/app/crm/templates/page.tsx`
+- `apps/web/src/components/templates/SendTestModal.tsx`
+- `apps/web/src/components/inbox/ChatWindow.tsx`
+
+**What was done:**
+1. **Campaign wizard → real dispatch.** The wizard already POSTed to
+   `/api/campaigns`, but that route validated the template against
+   `email_templates` and always rejected the WhatsApp template ids the wizard
+   sends — the flow was broken end to end. The campaigns API now uses the same
+   storage mapping as `lib/whatsapp/dispatcher.ts`: a campaign is a `flows` row
+   with `trigger_config.entityKind = 'campaign'`, and dispatch is a durable
+   `campaign_dispatch` outbox job the worker drains into the existing
+   rate-limited WhatsApp dispatcher (exactly the integration the dispatcher's
+   docstring describes). POST validates the template is Meta-approved, resolves
+   the audience, creates the row and enqueues the dispatch job (immediate or
+   `next_run_at = scheduledAt`, so the outbox is the scheduler).
+2. **Dispatch control.** START/RESUME enqueue (or accelerate a pending
+   scheduled) `campaign_dispatch` job; PAUSE delegates to the dispatcher's pause
+   lock (or fails the pending job for not-yet-started campaigns); CANCEL pauses,
+   fails all pending jobs and marks the campaign cancelled. Nothing sends
+   inline, so a 10k-recipient broadcast never holds an HTTP request open.
+3. **Campaign detail page** now shows real per-recipient telemetry aggregated
+   from `send_whatsapp` outbox jobs (sent/failed/queued + recipient log), polls
+   at 3.5s, and gained a Start/Send-Now button for queued campaigns. Delivered/
+   read/reply counters are honestly zero until Meta delivery webhooks land —
+   the previous implementation fabricated 96%/74%/18% benchmark rates.
+4. **Audience calculator** delegates to the same `resolveAudience` the
+   dispatcher uses at send time, so the wizard's pre-flight count can never
+   drift from what a launch delivers (phone + not deleted + tag filters).
+5. **Templates.** "Sync with Meta" now calls `POST /api/templates/sync`
+   (graceful no-op message when Meta env unset) instead of just refetching;
+   SendTestModal calls the real `POST /api/templates/test` and surfaces the
+   actual failure reason instead of faking success.
+6. **Inbox polish.** Fixed `ChatWindow.fetchTemplates` filtering on uppercase
+   `'APPROVED'` while the DB stores lowercase — the HSM TemplatePicker was
+   always empty. Mark-read-on-open verified: the thread GET resets
+   `unread_count` server-side and the 5s/2.5s poll intervals clean up on
+   unmount (no leaks).
+
+**Why:** the wizard/dispatch/detail stack was WhatsApp-shaped but wired to the
+email-campaign tables with incompatible job payloads (`send_email` jobs without
+`sendId` fail in the drainer), so no broadcast could ever send. The flows-based
+mapping reuses the dispatcher + worker that already exist.
+
+**Decisions:** campaigns live in `flows` (`trigger_config.entityKind =
+'campaign'`) per the established bots/knowledge-bases mapping; variable
+mappings are normalized from wizard vocabulary (firstName, custom.company) to
+the dispatcher's contact fields (first_name, company) in the API and the
+VariableMapper now only offers fields the dispatcher can actually resolve;
+read/replied stats stay at 0 rather than fabricated until delivery webhooks
+exist. `lib/**` was not modified.
+
+**Tests:** `pnpm typecheck` green (3/3 projects); `pnpm test` 17/17 passing
+(7 files).
+
+**Blockers:** none.

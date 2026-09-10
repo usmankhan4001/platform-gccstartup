@@ -3,6 +3,7 @@ import { createHash } from 'crypto'
 import { eq, and } from 'drizzle-orm'
 import { db } from '@/lib/db'
 import { api_keys } from '@gccstartup/db'
+import { checkRateLimit } from '@gccstartup/shared'
 
 export type ApiKeyPayload = {
   id: string
@@ -60,7 +61,26 @@ export function requireApiKey(handler: Function) {
         { status: 401 }
       )
     }
-    return handler(request, context, key)
+
+    // Each key carries its own requests-per-minute budget; the sliding window
+    // is in-process, which is correct for the single-container deployment.
+    const limit = checkRateLimit(`apikey:${key.id}`, key.rateLimit, 60_000)
+    if (!limit.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((limit.resetAt - Date.now()) / 1000))
+      const response = NextResponse.json(
+        { error: 'Rate limit exceeded. Retry later.' },
+        { status: 429 }
+      )
+      response.headers.set('Retry-After', String(retryAfter))
+      response.headers.set('X-RateLimit-Limit', String(key.rateLimit))
+      response.headers.set('X-RateLimit-Remaining', '0')
+      return response
+    }
+
+    const response = await handler(request, context, key)
+    response.headers.set('X-RateLimit-Limit', String(key.rateLimit))
+    response.headers.set('X-RateLimit-Remaining', String(Math.max(0, limit.remaining)))
+    return response
   }
 }
 

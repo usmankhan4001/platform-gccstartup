@@ -1,7 +1,10 @@
 import { publicPublicationFilter } from '@/lib/publication'
 
-// TODO: Replace with Drizzle queries once content is migrated.
-// These stubs preserve the original function signatures and types.
+// These stubs preserve the original function signatures and types. There is no
+// `countries` table in @gccstartup/db yet, so there is nothing to query — call
+// sites fall back to the static catalogue in components/site/content/countries.ts
+// while these return []. Replace the bodies with Drizzle queries once the table
+// is migrated.
 
 export type CountrySummary = {
   id: string
@@ -19,13 +22,11 @@ export type CountrySummary = {
 
 /** Resolves a list of country UUIDs (published only) into full country records. */
 export async function getCountriesByIds(_ids: (string | null | undefined)[]): Promise<CountrySummary[]> {
-  // TODO: Replace with Drizzle query once countries table is migrated
   return []
 }
 
 /** All published countries with the fields the programmatic pages need, sorted by name. */
 export async function getAllCountries(): Promise<CountrySummary[]> {
-  // TODO: Replace with Drizzle query once countries table is migrated
   return []
 }
 

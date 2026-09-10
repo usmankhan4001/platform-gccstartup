@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Mail,
@@ -19,176 +19,103 @@ import {
   Eye,
   Code2,
   Trash2,
-  Sliders,
-  Filter,
   BarChart3,
   Search,
-  UserX,
-  Play,
-  ArrowRight,
   Monitor,
   Smartphone,
   Tablet,
-  FileCode,
-  CheckCircle,
-  XCircle,
-  HelpCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EMAIL_MERGE_TAGS, renderEmail, renderEmailPreview, type EmailDocument } from '@/lib/email/render'
 import { EMAIL_BLOCKS, type EmailBlockName } from '@/puck/email-blocks'
+import type { EmailSequence } from '@/components/automation/types'
 import { useToast } from '@/components/ui/ToastProvider'
 
-// Pre-defined Automated Drip Sequences
-const AUTOMATED_SEQUENCES = [
-  {
-    id: 'seq-welcome',
-    name: 'Instant Formation Blueprint & Lead Nurture',
-    trigger: 'New lead submitted via Tax Calculator / Banking Quiz',
-    target: 'All Inbound Leads',
-    status: 'ACTIVE',
-    enrolledCount: 1420,
-    openRate: '72.4%',
-    clickRate: '34.8%',
-    steps: [
-      {
-        stepNumber: 1,
-        title: 'Instant Calculation Summary & UAE Tax Report',
-        delay: 'Immediate (0 mins)',
-        channel: 'SES Email + WhatsApp HSM',
-        template: 'UAE Freezone Tax & Formation Blueprint',
-        openRate: '88.1%',
-      },
-      {
-        stepNumber: 2,
-        title: 'Freezone vs Mainland Jurisdiction Matrix',
-        delay: '+24 hours',
-        channel: 'SES Email',
-        template: 'Freezone vs Mainland Advisory Comparison',
-        openRate: '68.5%',
-      },
-      {
-        stepNumber: 3,
-        title: 'VIP Banking Odds & Pre-Approval Consultation',
-        delay: '+72 hours',
-        channel: 'SES Email + Desk Follow-up Task',
-        template: 'Corporate Bank Account Pre-Qualification',
-        openRate: '59.2%',
-      },
-    ],
-  },
-  {
-    id: 'seq-kyc',
-    name: 'KYC & Encrypted Passport Collection',
-    trigger: 'Deal advances to KYC Review stage in CRM Kanban',
-    target: 'Active Applications',
-    status: 'ACTIVE',
-    enrolledCount: 384,
-    openRate: '84.6%',
-    clickRate: '52.1%',
-    steps: [
-      {
-        stepNumber: 1,
-        title: 'Secure Passport & UBO Document Upload Request',
-        delay: 'Immediate upon stage move',
-        channel: 'SES Email + Encrypted Portal Link',
-        template: 'Action Required: KYC Upload for {{company_name}}',
-        openRate: '91.3%',
-      },
-      {
-        stepNumber: 2,
-        title: '24-Hour Expedited Processing Reminder',
-        delay: '+24 hours if pending',
-        channel: 'SES Email + WhatsApp Alert',
-        template: 'Urgent: Complete KYC for Dubai Department of Economy',
-        openRate: '82.0%',
-      },
-      {
-        stepNumber: 3,
-        title: 'Specialist Desk Direct Intervention Notice',
-        delay: '+48 hours if unfulfilled',
-        channel: 'SES Email + Advisor Call Task',
-        template: 'Direct Assistance from {{advisor_name}}',
-        openRate: '78.4%',
-      },
-    ],
-  },
-  {
-    id: 'seq-onboarding',
-    name: 'Post-Incorporation Onboarding & Banking',
-    trigger: 'Deal advances to Registered / License Issued stage',
-    target: 'Incorporated Companies',
-    status: 'ACTIVE',
-    enrolledCount: 295,
-    openRate: '94.2%',
-    clickRate: '63.0%',
-    steps: [
-      {
-        stepNumber: 1,
-        title: 'Trade License Delivery & Certificate of Incorporation',
-        delay: 'Immediate on issuance',
-        channel: 'SES Transactional + License PDF',
-        template: 'Official License Issued: {{license_number}}',
-        openRate: '96.8%',
-      },
-      {
-        stepNumber: 2,
-        title: 'Corporate Bank Account Opening Dossier',
-        delay: '+24 hours',
-        channel: 'SES Email + Compliance Guide',
-        template: 'Wio / Emirates NBD Corporate Account Onboarding',
-        openRate: '92.4%',
-      },
-      {
-        stepNumber: 3,
-        title: 'Corporate Tax & FTA Registration Requirements',
-        delay: '+7 days post-incorporation',
-        channel: 'SES Email + Tax Specialist Introduction',
-        template: 'UAE Corporate Tax Compliance & VAT Guide',
-        openRate: '87.1%',
-      },
-    ],
-  },
-  {
-    id: 'seq-renewal',
-    name: 'Annual License & Residency Renewal Radar',
-    trigger: 'Trade License Expiry Date within 60 / 30 / 7 Days',
-    target: 'Existing Retained Entities',
-    status: 'ACTIVE',
-    enrolledCount: 612,
-    openRate: '86.7%',
-    clickRate: '49.8%',
-    steps: [
-      {
-        stepNumber: 1,
-        title: '60-Day Renewal Early-Bird Discount Notice',
-        delay: 'T-60 Days to Expiry',
-        channel: 'SES Email + Quotation Breakdown',
-        template: 'Advance Renewal Notice: {{company_name}} License',
-        openRate: '88.5%',
-      },
-      {
-        stepNumber: 2,
-        title: '30-Day Mandatory Compliance & Lease Renewal Alert',
-        delay: 'T-30 Days to Expiry',
-        channel: 'SES Email + WhatsApp Broadcast',
-        template: 'Urgent: License Expiry on {{trade_license_expiry}}',
-        openRate: '89.2%',
-      },
-      {
-        stepNumber: 3,
-        title: '7-Day Government Penalty & Visa Freeze Prevention',
-        delay: 'T-7 Days to Expiry',
-        channel: 'SES High-Priority + SMS Alert',
-        template: 'Final Notice: Avoid UAE DED Penalties',
-        openRate: '82.4%',
-      },
-    ],
-  },
-]
+// ---------------------------------------------------------------- local types
 
-// Pre-built Branded Template Definitions for the Visual Puck Builder
-const STARTER_TEMPLATES = [
+type BuilderTemplate = {
+  id: string
+  name: string
+  subject: string
+  category: string
+  description: string
+  document: EmailDocument
+  source: 'db' | 'starter'
+}
+
+type SuppressionRow = {
+  id: string
+  email: string
+  reason: string
+  source: string | null
+  detail: string | null
+  created_at: string | null
+}
+
+type DeliverabilityStats = {
+  total: number
+  queued: number
+  sent: number
+  delivered: number
+  opened: number
+  clicked: number
+  bounced: number
+  complained: number
+  failed: number
+  deliveryRate: number
+  openRate: number
+  clickRate: number
+  bounceRate: number
+  complaintRate: number
+}
+
+type SesConfig = {
+  configured: boolean
+  region: string | null
+  fromEmail: string | null
+  fromName: string | null
+  missing: string[]
+}
+
+function pct(value: number | null | undefined): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return '—'
+  return `${(value * 100).toFixed(1)}%`
+}
+
+/** DB rows store the Puck document in `blocks`; only rows that parse into a
+ * document with content can be edited in the builder — HTML-only rows are
+ * skipped rather than rendered as a blank canvas. */
+function toEmailDocument(blocks: unknown): EmailDocument | null {
+  if (!blocks || typeof blocks !== 'object') return null
+  const obj = blocks as { content?: unknown; root?: { props?: Record<string, unknown> } }
+  const content = Array.isArray(blocks) ? blocks : Array.isArray(obj.content) ? obj.content : null
+  if (!content || content.length === 0) return null
+  return { content: content as EmailDocument['content'], root: { props: obj.root?.props ?? {} } }
+}
+
+/** Status chip vocabulary shared by the telemetry matrix and the sequences tab. */
+function sequenceStatusChip(status: EmailSequence['status']): { label: string; className: string } {
+  switch (status) {
+    case 'active':
+      return { label: 'ACTIVE', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' }
+    case 'paused':
+      return { label: 'PAUSED', className: 'bg-amber-50 text-amber-700 border-amber-200' }
+    case 'draft':
+      return { label: 'DRAFT', className: 'bg-slate-100 text-slate-600 border-slate-200' }
+    case 'archived':
+      return { label: 'ARCHIVED', className: 'bg-slate-100 text-slate-600 border-slate-200' }
+    default:
+      return { label: 'NOT SET UP', className: 'bg-orange-50 text-[var(--orange)] border-orange-200' }
+  }
+}
+
+// Pre-built Branded Template Definitions for the Visual Puck Builder.
+//
+// These are quick-start documents, not database rows: the builder always has
+// something to render and edit even on a fresh workspace. Templates saved in
+// `email_templates` (via /api/email/templates) are fetched on mount and take
+// precedence in the selector.
+const STARTER_TEMPLATES: BuilderTemplate[] = [
   {
     id: 'tpl-welcome-blueprint',
     name: 'UAE Freezone Formation Blueprint',
@@ -290,6 +217,7 @@ const STARTER_TEMPLATES = [
       ],
       root: { props: { subject: 'Your UAE Company Formation Blueprint — {{company_name}}' } },
     } as EmailDocument,
+    source: 'starter',
   },
   {
     id: 'tpl-kyc-request',
@@ -353,6 +281,7 @@ const STARTER_TEMPLATES = [
       ],
       root: { props: { subject: 'Action Required: Encrypted Passport Upload for {{company_name}}' } },
     } as EmailDocument,
+    source: 'starter',
   },
   {
     id: 'tpl-renewal-alert',
@@ -422,20 +351,14 @@ const STARTER_TEMPLATES = [
       ],
       root: { props: { subject: 'UAE Compliance Notice: Annual License Renewal for {{company_name}}' } },
     } as EmailDocument,
+    source: 'starter',
   },
-]
-
-// Mock live telemetry suppression list items
-const INITIAL_SUPPRESSIONS = [
-  { id: 'sup-1', email: 'bounced_user_test@invalid-domain-ae.com', reason: 'hard_bounce', source: 'Amazon SES Webhook', detail: '550 5.1.1 User unknown', created_at: '2026-09-08T11:20:00Z' },
-  { id: 'sup-2', email: 'spam_complaint_99@hotmail.com', reason: 'complaint', source: 'Amazon SES Feedback Loop', detail: 'Recipient marked as spam', created_at: '2026-09-07T08:14:00Z' },
-  { id: 'sup-3', email: 'unsub_investor_dxb@yahoo.com', reason: 'manual', source: 'Admin Contact Center', detail: 'Requested opt-out via WhatsApp call', created_at: '2026-09-05T14:32:00Z' },
-  { id: 'sup-4', email: 'bad_syntax_lead@wrong..ae', reason: 'invalid', source: 'Ingestion Syntax Validator', detail: 'Malformed domain syntax', created_at: '2026-09-03T19:00:00Z' },
 ]
 
 export function EmailOperationsView() {
   const [activeTab, setActiveTab] = useState<'telemetry' | 'builder' | 'sequences' | 'suppressions'>('telemetry')
-  const [selectedTemplate, setSelectedTemplate] = useState(STARTER_TEMPLATES[0])
+  const [templates, setTemplates] = useState<BuilderTemplate[]>(STARTER_TEMPLATES)
+  const [selectedTemplate, setSelectedTemplate] = useState<BuilderTemplate>(STARTER_TEMPLATES[0])
   const [activeDoc, setActiveDoc] = useState<EmailDocument>(STARTER_TEMPLATES[0].document)
   const [previewDevice, setPreviewDevice] = useState<'desktop' | 'tablet' | 'mobile'>('desktop')
   const [interpolatePreview, setInterpolatePreview] = useState(true)
@@ -443,15 +366,109 @@ export function EmailOperationsView() {
   const [testEmailAddress, setTestEmailAddress] = useState('tariq@almansoorgroup.ae')
   const [sendingTest, setSendingTest] = useState(false)
   const [copiedToken, setCopiedToken] = useState<string | null>(null)
-  const [suppressions, setSuppressions] = useState(INITIAL_SUPPRESSIONS)
+  const [suppressions, setSuppressions] = useState<SuppressionRow[]>([])
   const [suppressionSearch, setSuppressionSearch] = useState('')
   const [newSuppressionEmail, setNewSuppressionEmail] = useState('')
   const [newSuppressionReason, setNewSuppressionReason] = useState('manual')
   const [showAddSuppressionModal, setShowAddSuppressionModal] = useState(false)
-  const [selectedSequence, setSelectedSequence] = useState(AUTOMATED_SEQUENCES[0])
+  const [sequences, setSequences] = useState<EmailSequence[]>([])
+  const [selectedSequenceKey, setSelectedSequenceKey] = useState<string | null>(null)
+  const [provisioningKey, setProvisioningKey] = useState<string | null>(null)
+  const [stats, setStats] = useState<DeliverabilityStats | null>(null)
+  const [sesConfig, setSesConfig] = useState<SesConfig | null>(null)
   const [selectedBlockIndex, setSelectedBlockIndex] = useState<number | null>(null)
 
-  const { success: showSuccess, error: showError } = useToast()
+  const { success: showSuccess, error: showError, toast: showToast } = useToast()
+
+  // ---------------------------------------------------------------- loaders
+
+  const loadSequences = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/sequences')
+      if (!res.ok) throw new Error('Failed to load sequences')
+      const data = (await res.json()) as { data?: EmailSequence[] }
+      setSequences(Array.isArray(data.data) ? data.data : [])
+    } catch (err) {
+      console.error('[email] sequences failed', err)
+      // Empty list renders the graceful empty state; never a crash.
+    }
+  }, [])
+
+  const loadTemplates = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/templates')
+      if (!res.ok) throw new Error('Failed to load templates')
+      const data = (await res.json()) as { data?: Array<Record<string, unknown>> }
+      const rows = Array.isArray(data.data) ? data.data : []
+      const mapped = rows
+        .map((row): BuilderTemplate | null => {
+          const document = toEmailDocument(row.blocks)
+          if (!document) return null
+          return {
+            id: String(row.id),
+            name: String(row.name ?? 'Untitled template'),
+            subject: String(row.subject ?? ''),
+            category: String(row.category ?? 'marketing'),
+            description: typeof row.description === 'string' ? row.description : 'Saved in the email template library.',
+            document,
+            source: 'db',
+          }
+        })
+        .filter((entry): entry is BuilderTemplate => entry !== null)
+      if (mapped.length) setTemplates([...mapped, ...STARTER_TEMPLATES])
+    } catch (err) {
+      console.error('[email] templates failed', err)
+      // Starters remain available when the library is empty or unreachable.
+    }
+  }, [])
+
+  const loadSuppressions = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/suppressions')
+      if (!res.ok) throw new Error('Failed to load suppressions')
+      const data = (await res.json()) as { data?: Array<Record<string, unknown>> }
+      setSuppressions(
+        (Array.isArray(data.data) ? data.data : []).map((row) => ({
+          id: String(row.id),
+          email: String(row.email),
+          reason: String(row.reason ?? 'manual'),
+          source: typeof row.source === 'string' ? row.source : null,
+          detail: typeof row.detail === 'string' ? row.detail : null,
+          created_at: typeof row.created_at === 'string' ? row.created_at : null,
+        })),
+      )
+    } catch (err) {
+      console.error('[email] suppressions failed', err)
+    }
+  }, [])
+
+  const loadStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/stats')
+      if (!res.ok) throw new Error('Failed to load stats')
+      setStats((await res.json()) as DeliverabilityStats)
+    } catch (err) {
+      console.error('[email] stats failed', err)
+    }
+  }, [])
+
+  const loadConfig = useCallback(async () => {
+    try {
+      const res = await fetch('/api/email/config')
+      if (!res.ok) throw new Error('Failed to load email config')
+      setSesConfig((await res.json()) as SesConfig)
+    } catch (err) {
+      console.error('[email] config failed', err)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadSequences()
+    void loadTemplates()
+    void loadSuppressions()
+    void loadStats()
+    void loadConfig()
+  }, [loadSequences, loadTemplates, loadSuppressions, loadStats, loadConfig])
 
   // Render HTML from activeDoc
   const rendered = interpolatePreview
@@ -466,7 +483,10 @@ export function EmailOperationsView() {
     setTimeout(() => setCopiedToken(null), 2000)
   }
 
-  // Handle Test Send Email
+  // Handle Test Send Email — renders the active document exactly as a real send
+  // would and dispatches one transactional email through SES. The route reports
+  // `not_configured` (missing env) and `suppressed` distinctly so the operator
+  // always knows what actually happened.
   const handleSendTest = async () => {
     if (!testEmailAddress || !testEmailAddress.includes('@')) {
       showError('Please enter a valid email address')
@@ -474,10 +494,21 @@ export function EmailOperationsView() {
     }
     setSendingTest(true)
     try {
-      // Simulate / trigger real send endpoint
-      await new Promise((r) => setTimeout(r, 900))
-      showSuccess(`Test email dispatched via Amazon SES dedicated pool to ${testEmailAddress}`)
-    } catch {
+      const res = await fetch('/api/email/test-send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to: testEmailAddress, document: activeDoc }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; reason?: string; missing?: string[]; messageId?: string; error?: string }
+      if (res.ok && data.ok) {
+        showSuccess(`Test email dispatched via Amazon SES to ${testEmailAddress}`)
+      } else if (data.reason === 'not_configured') {
+        showToast(`SES is not configured — missing env: ${(data.missing ?? []).join(', ') || 'unknown'}`)
+      } else {
+        showError(data.error || 'Failed to dispatch test email')
+      }
+    } catch (err) {
+      console.error('[email] test send failed', err)
       showError('Failed to dispatch test email')
     } finally {
       setSendingTest(false)
@@ -512,38 +543,73 @@ export function EmailOperationsView() {
     showSuccess(`Added ${blockDef.label} block`)
   }
 
-  // Load a starter template
-  const loadTemplate = (tpl: typeof STARTER_TEMPLATES[0]) => {
+  // Load a template into the builder (DB row or starter document)
+  const loadTemplate = (tpl: BuilderTemplate) => {
     setSelectedTemplate(tpl)
     setActiveDoc(tpl.document)
     setSelectedBlockIndex(null)
     showSuccess(`Loaded template: ${tpl.name}`)
   }
 
-  // Handle Add Suppression
-  const handleAddSuppression = (e: React.FormEvent) => {
+  // Handle Add Suppression — persisted via /api/email/suppressions
+  const handleAddSuppression = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newSuppressionEmail || !newSuppressionEmail.includes('@')) {
       showError('Enter a valid email')
       return
     }
-    const item = {
-      id: `sup-${Date.now()}`,
-      email: newSuppressionEmail.trim().toLowerCase(),
-      reason: newSuppressionReason,
-      source: 'Admin Manual Console',
-      detail: 'Manual block entered by administrator',
-      created_at: new Date().toISOString(),
+    try {
+      const res = await fetch('/api/email/suppressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: newSuppressionEmail.trim().toLowerCase(), reason: newSuppressionReason, source: 'Admin Manual Console', detail: 'Manual block entered by administrator' }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { ok?: boolean; message?: string; error?: string }
+      if (!res.ok) throw new Error(data.error || 'Failed to add suppression')
+      setNewSuppressionEmail('')
+      setShowAddSuppressionModal(false)
+      showSuccess(data.message || 'Suppression added')
+      await loadSuppressions()
+    } catch (err) {
+      console.error('[email] add suppression failed', err)
+      showError(err instanceof Error ? err.message : 'Failed to add suppression')
     }
-    setSuppressions([item, ...suppressions])
-    setNewSuppressionEmail('')
-    setShowAddSuppressionModal(false)
-    showSuccess(`Suppressed ${item.email}`)
   }
 
-  const handleRemoveSuppression = (id: string, email: string) => {
-    setSuppressions(suppressions.filter((s) => s.id !== id))
-    showSuccess(`Removed ${email} from suppression list`)
+  const handleRemoveSuppression = async (id: string, email: string) => {
+    // Optimistic removal; the refetch restores the row if the delete fails.
+    setSuppressions((rows) => rows.filter((row) => row.id !== id))
+    try {
+      const res = await fetch(`/api/email/suppressions?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
+      if (!res.ok) throw new Error('Failed to remove suppression')
+      showSuccess(`Removed ${email} from suppression list`)
+      await loadSuppressions()
+    } catch (err) {
+      console.error('[email] remove suppression failed', err)
+      showError('Failed to remove suppression')
+      await loadSuppressions()
+    }
+  }
+
+  // Provision an unprovisioned sequence definition into a real flow row.
+  const handleProvisionSequence = async (key: string) => {
+    setProvisioningKey(key)
+    try {
+      const res = await fetch('/api/email/sequences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key }),
+      })
+      const data = (await res.json().catch(() => ({}))) as { success?: boolean; flow?: { id?: string }; error?: string }
+      if (!res.ok) throw new Error(data.error || 'Failed to provision sequence')
+      showSuccess('Sequence provisioned as a draft flow — open it in the builder to publish')
+      await loadSequences()
+    } catch (err) {
+      console.error('[email] provision failed', err)
+      showError(err instanceof Error ? err.message : 'Failed to provision sequence')
+    } finally {
+      setProvisioningKey(null)
+    }
   }
 
   const filteredSuppressions = suppressions.filter(
@@ -552,6 +618,8 @@ export function EmailOperationsView() {
       s.reason.toLowerCase().includes(suppressionSearch.toLowerCase()),
   )
 
+  const selectedSequence = sequences.find((seq) => seq.key === selectedSequenceKey) ?? sequences[0] ?? null
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -559,10 +627,17 @@ export function EmailOperationsView() {
         <div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-2xl font-bold tracking-tight text-[var(--text)]">Email Operations &amp; SES Engine</h1>
-            <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 flex items-center gap-1">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              SES Dedicated IP Pool Active
-            </span>
+            {sesConfig?.configured ? (
+              <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 flex items-center gap-1">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                SES Dedicated IP Pool Active
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200 px-2.5 py-0.5 text-xs font-semibold text-amber-700">
+                <AlertTriangle className="h-3 w-3" />
+                SES Not Configured
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-[var(--text-secondary)]">
             HubSpot-grade visual email builder, token variable mesh, automated formation drip sequences, and AWS SES deliverability radar.
@@ -615,7 +690,7 @@ export function EmailOperationsView() {
           }`}
         >
           <Clock className="h-4 w-4" />
-          Automated Drip Sequences ({AUTOMATED_SEQUENCES.length})
+          Automated Drip Sequences ({sequences.length})
         </button>
 
         <button
@@ -634,15 +709,15 @@ export function EmailOperationsView() {
       {/* TAB 1: SES TELEMETRY & DELIVERABILITY RADAR */}
       {activeTab === 'telemetry' && (
         <div className="space-y-6">
-          {/* Top KPI Cards */}
+          {/* Top KPI Cards — live from /api/email/stats (email_sends) */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
                 <span>Total Emails Dispatched</span>
                 <Send className="h-4 w-4 text-[var(--accent)]" />
               </div>
-              <p className="mt-2 text-2xl font-bold text-[var(--text)]">18,940</p>
-              <p className="mt-1 text-xs text-emerald-600 font-semibold">+14.2% from last month</p>
+              <p className="mt-2 text-2xl font-bold text-[var(--text)]">{stats ? stats.sent.toLocaleString() : '—'}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{stats ? `${stats.queued.toLocaleString()} queued in outbox` : 'Loading send telemetry…'}</p>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
@@ -650,8 +725,8 @@ export function EmailOperationsView() {
                 <span>Delivery Success Rate</span>
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
               </div>
-              <p className="mt-2 text-2xl font-bold text-emerald-600">99.82%</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">18,906 delivered</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-600">{pct(stats?.deliveryRate)}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{stats ? `${stats.delivered.toLocaleString()} delivered` : 'No sends recorded yet'}</p>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
@@ -659,8 +734,8 @@ export function EmailOperationsView() {
                 <span>Average Open Rate</span>
                 <Eye className="h-4 w-4 text-blue-600" />
               </div>
-              <p className="mt-2 text-2xl font-bold text-blue-600">64.5%</p>
-              <p className="mt-1 text-xs text-[var(--text-secondary)]">Industry benchmark: 22.8%</p>
+              <p className="mt-2 text-2xl font-bold text-blue-600">{pct(stats?.openRate)}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">{stats ? `${stats.opened.toLocaleString()} opens tracked` : 'Opens appear after delivery webhooks'}</p>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
@@ -668,51 +743,54 @@ export function EmailOperationsView() {
                 <span>SES Reputation Health</span>
                 <ShieldCheck className="h-4 w-4 text-emerald-600" />
               </div>
-              <p className="mt-2 text-2xl font-bold text-emerald-600">0.02% Bounce</p>
-              <p className="mt-1 text-xs text-emerald-700 font-medium">Spam complaints: &lt;0.001%</p>
+              <p className="mt-2 text-2xl font-bold text-emerald-600">{pct(stats?.bounceRate)} Bounce</p>
+              <p className="mt-1 text-xs text-emerald-700 font-medium">Spam complaints: {pct(stats?.complaintRate)}</p>
             </div>
           </div>
 
-          {/* Infrastructure Health Status */}
+          {/* Infrastructure Health Status — live from /api/email/config */}
           <div className="grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold uppercase text-[var(--text-tertiary)]">
                 <span>Verified Sender Identity</span>
                 <Mail className="h-4 w-4 text-[var(--accent)]" />
               </div>
-              <p className="mt-2 text-base font-bold text-[var(--text)]">noreply@gccstartup.com</p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                  DKIM 2048-bit Verified
-                </span>
-                <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">
-                  SPF 100% Pass
-                </span>
+              <p className="mt-2 text-base font-bold text-[var(--text)]">{sesConfig?.fromEmail ?? 'Not configured'}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {sesConfig?.configured ? (
+                  <>
+                    <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">SES credentials set</span>
+                    <span className="rounded bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 border border-emerald-200">From identity configured</span>
+                  </>
+                ) : (
+                  <span className="inline-flex items-center gap-1 rounded bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-700 border border-amber-200">
+                    <AlertTriangle className="h-3 w-3" />
+                    Missing: {(sesConfig?.missing ?? []).join(', ') || 'AWS credentials'}
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold uppercase text-[var(--text-tertiary)]">
-                <span>Dedicated Sending Pool</span>
+                <span>Sending Region</span>
                 <Layers className="h-4 w-4 text-indigo-600" />
               </div>
-              <p className="mt-2 text-base font-bold text-[var(--text)]">AWS SES (us-east-1)</p>
-              <p className="mt-1 text-xs font-mono text-[var(--text-secondary)]">IP: 198.51.100.44 · Warm Score 100/100</p>
+              <p className="mt-2 text-base font-bold text-[var(--text)]">AWS SES {sesConfig?.region ? `(${sesConfig.region})` : ''}</p>
+              <p className="mt-1 text-xs font-mono text-[var(--text-secondary)]">From name: {sesConfig?.fromName ?? '—'}</p>
             </div>
 
             <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 shadow-xs">
               <div className="flex items-center justify-between text-xs font-bold uppercase text-[var(--text-tertiary)]">
-                <span>Daily Sending Quota</span>
+                <span>Outbox Queue Health</span>
                 <Sparkles className="h-4 w-4 text-amber-500" />
               </div>
-              <p className="mt-2 text-base font-bold text-[var(--text)]">18,940 / 50,000 sent</p>
-              <div className="mt-2 w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                <div className="bg-[var(--navy)] h-2 rounded-full" style={{ width: '37.8%' }} />
-              </div>
+              <p className="mt-2 text-base font-bold text-[var(--text)]">{stats ? `${stats.queued.toLocaleString()} queued · ${stats.failed.toLocaleString()} failed` : '—'}</p>
+              <p className="mt-1 text-xs text-[var(--text-secondary)]">Drained by the worker each tick</p>
             </div>
           </div>
 
-          {/* Active Flow Performance Matrix */}
+          {/* Active Flow Performance Matrix — real sequences + enrollment counts */}
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] shadow-sm overflow-hidden">
             <div className="p-4 border-b border-[var(--border)] bg-[var(--surface-alt)] flex items-center justify-between">
               <div>
@@ -720,53 +798,64 @@ export function EmailOperationsView() {
                   Automated Trigger Deliverability Performance
                 </h3>
                 <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                  Transactional &amp; lifecycle event statistics delivered through SES
+                  Drip sequences joined to live flow enrollment counts from the database
                 </p>
               </div>
-              <span className="text-xs font-mono font-semibold text-[var(--text-secondary)]">
-                Live Radar Synced
-              </span>
+              <button
+                onClick={() => void loadSequences()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--border)] px-2.5 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-all"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Refresh
+              </button>
             </div>
 
             <div className="divide-y divide-[var(--border)] text-xs">
-              {AUTOMATED_SEQUENCES.map((seq) => (
-                <div key={seq.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-sm text-[var(--text)]">{seq.name}</span>
-                      <span className="rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[10px] font-bold border border-emerald-200">
-                        {seq.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--text-secondary)]">Trigger: {seq.trigger}</p>
-                    <p className="text-[11px] text-[var(--text-tertiary)]">Target: {seq.target} · {seq.steps.length} Automated Steps</p>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <span className="block font-mono text-xs font-bold text-[var(--text)]">{seq.enrolledCount}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Enrolled</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="block font-mono text-xs font-bold text-emerald-600">{seq.openRate}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Open Rate</span>
-                    </div>
-                    <div className="text-right">
-                      <span className="block font-mono text-xs font-bold text-blue-600">{seq.clickRate}</span>
-                      <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Click Rate</span>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSelectedSequence(seq)
-                        setActiveTab('sequences')
-                      }}
-                      className="rounded-lg border border-[var(--border)] px-3 py-1.5 font-semibold text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] transition-all"
-                    >
-                      View Steps &rarr;
-                    </button>
-                  </div>
+              {sequences.length === 0 ? (
+                <div className="p-10 text-center text-xs text-[var(--text-tertiary)]">
+                  No drip sequences configured yet — the four canonical programmes appear here once the sequences API is reachable.
                 </div>
-              ))}
+              ) : (
+                sequences.map((seq) => {
+                  const chip = sequenceStatusChip(seq.status)
+                  return (
+                    <div key={seq.key} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm text-[var(--text)]">{seq.name}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold border ${chip.className}`}>{chip.label}</span>
+                        </div>
+                        <p className="text-xs text-[var(--text-secondary)]">Trigger: {seq.triggerLabel}</p>
+                        <p className="text-[11px] text-[var(--text-tertiary)]">{seq.steps.length} Automated Steps · {seq.activeCount.toLocaleString()} active enrollments</p>
+                      </div>
+
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <span className="block font-mono text-xs font-bold text-[var(--text)]">{seq.enrolledCount.toLocaleString()}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Enrolled</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block font-mono text-xs font-bold text-emerald-600">{pct(seq.openRate)}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Open Rate</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="block font-mono text-xs font-bold text-blue-600">{pct(seq.clickRate)}</span>
+                          <span className="text-[10px] text-[var(--text-tertiary)] uppercase font-semibold">Click Rate</span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setSelectedSequenceKey(seq.key)
+                            setActiveTab('sequences')
+                          }}
+                          className="rounded-lg border border-[var(--border)] px-3 py-1.5 font-semibold text-xs text-[var(--text)] hover:bg-[var(--surface-hover)] transition-all"
+                        >
+                          View Steps &rarr;
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
           </div>
         </div>
@@ -781,10 +870,11 @@ export function EmailOperationsView() {
             <div className="flex items-center gap-3">
               <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">Template:</span>
               <div className="flex items-center gap-2">
-                {STARTER_TEMPLATES.map((t) => (
+                {templates.map((t) => (
                   <button
                     key={t.id}
                     onClick={() => loadTemplate(t)}
+                    title={t.source === 'starter' ? 'Built-in starter document' : 'Saved in the email template library'}
                     className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                       selectedTemplate.id === t.id
                         ? 'bg-[var(--navy)] text-white shadow-xs'
@@ -792,6 +882,7 @@ export function EmailOperationsView() {
                     }`}
                   >
                     {t.name}
+                    {t.source === 'starter' && <span className="ml-1.5 text-[9px] uppercase opacity-70">starter</span>}
                   </button>
                 ))}
               </div>
@@ -1047,6 +1138,12 @@ export function EmailOperationsView() {
                 <p className="text-[11px] text-[var(--text-secondary)] mb-3">
                   Send a live transactional test email rendered with real token variables.
                 </p>
+                {sesConfig && !sesConfig.configured && (
+                  <p className="mb-3 rounded-lg bg-amber-50 border border-amber-200 px-2.5 py-2 text-[11px] font-medium text-amber-700 flex items-start gap-1.5">
+                    <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>SES is not configured ({(sesConfig.missing ?? []).join(', ')}). Test sends will report the missing env vars instead of sending.</span>
+                  </p>
+                )}
                 <div className="space-y-2">
                   <input
                     type="email"
@@ -1127,92 +1224,128 @@ export function EmailOperationsView() {
         </div>
       )}
 
-      {/* TAB 3: AUTOMATED DRIP SEQUENCES */}
+      {/* TAB 3: AUTOMATED DRIP SEQUENCES — canonical definitions joined to real flows */}
       {activeTab === 'sequences' && (
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
             {/* Sequence Selector List */}
             <div className="lg:col-span-4 space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
-                Configured Drip Sequences
-              </h3>
-              {AUTOMATED_SEQUENCES.map((seq) => (
-                <div
-                  key={seq.id}
-                  onClick={() => setSelectedSequence(seq)}
-                  className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                    selectedSequence.id === seq.id
-                      ? 'border-[var(--navy)] bg-white shadow-md'
-                      : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
-                  }`}
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+                  Configured Drip Sequences
+                </h3>
+                <button
+                  onClick={() => void loadSequences()}
+                  className="inline-flex items-center gap-1 rounded-lg border border-[var(--border)] px-2 py-1 text-[10px] font-semibold text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] transition-all"
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-sm text-[var(--text)]">{seq.name}</span>
-                    <span className="rounded-full bg-emerald-50 text-emerald-700 px-2 py-0.5 text-[9px] font-bold border border-emerald-200">
-                      {seq.status}
-                    </span>
-                  </div>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{seq.trigger}</p>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
-                    <span>{seq.steps.length} Automated Steps</span>
-                    <span className="font-mono text-emerald-600 font-bold">{seq.openRate} Avg Open</span>
-                  </div>
+                  <RefreshCw className="h-3 w-3" />
+                  Refresh
+                </button>
+              </div>
+              {sequences.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-alt)] p-6 text-center text-xs text-[var(--text-tertiary)]">
+                  No sequences loaded — the four canonical programmes appear here when the sequences API responds.
                 </div>
-              ))}
+              ) : (
+                sequences.map((seq) => {
+                  const chip = sequenceStatusChip(seq.status)
+                  return (
+                    <div
+                      key={seq.key}
+                      onClick={() => setSelectedSequenceKey(seq.key)}
+                      className={`p-4 rounded-xl border cursor-pointer transition-all ${
+                        selectedSequence?.key === seq.key
+                          ? 'border-[var(--navy)] bg-white shadow-md'
+                          : 'border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-hover)]'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-[var(--text)]">{seq.name}</span>
+                        <span className={`rounded-full px-2 py-0.5 text-[9px] font-bold border ${chip.className}`}>{chip.label}</span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{seq.triggerLabel}</p>
+                      <div className="mt-3 flex items-center justify-between text-[11px] text-[var(--text-tertiary)] pt-2 border-t border-[var(--border)]">
+                        <span>{seq.steps.length} Automated Steps</span>
+                        <span className="font-mono text-[var(--text-secondary)] font-bold">{seq.enrolledCount.toLocaleString()} Enrolled</span>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </div>
 
             {/* Sequence Step-by-Step Pipeline Inspector */}
             <div className="lg:col-span-8 space-y-4">
-              <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-4 mb-5">
-                  <div>
+              {selectedSequence ? (
+                <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-5 shadow-sm">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[var(--border)] pb-4 mb-5">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-[var(--text)]">{selectedSequence.name}</h2>
+                        <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold border ${sequenceStatusChip(selectedSequence.status).className}`}>
+                          {sequenceStatusChip(selectedSequence.status).label}
+                        </span>
+                      </div>
+                      <p className="text-xs text-[var(--text-secondary)] mt-1">
+                        Trigger: <span className="font-medium text-[var(--text)]">{selectedSequence.triggerLabel}</span>
+                      </p>
+                      <p className="text-[11px] text-[var(--text-tertiary)] mt-0.5">{selectedSequence.description}</p>
+                    </div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg font-bold text-[var(--text)]">{selectedSequence.name}</h2>
-                      <span className="rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-0.5 text-xs font-bold border border-emerald-200">
-                        {selectedSequence.status}
-                      </span>
+                      {selectedSequence.status === 'unprovisioned' ? (
+                        <Button size="sm" onClick={() => void handleProvisionSequence(selectedSequence.key)} disabled={provisioningKey === selectedSequence.key}>
+                          <Plus className="h-4 w-4 mr-1" />
+                          {provisioningKey === selectedSequence.key ? 'Provisioning…' : 'Set Up Flow'}
+                        </Button>
+                      ) : selectedSequence.flowId ? (
+                        <Link
+                          href={`/crm/flows?flow=${selectedSequence.flowId}`}
+                          className="inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--navy)] bg-transparent px-4 py-1.5 text-xs font-bold text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white transition-colors"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                          Open in Flow Builder
+                        </Link>
+                      ) : null}
                     </div>
-                    <p className="text-xs text-[var(--text-secondary)] mt-1">
-                      Trigger: <span className="font-medium text-[var(--text)]">{selectedSequence.trigger}</span>
-                    </p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Button size="sm" variant="outline">
-                      Edit Sequence Trigger
-                    </Button>
-                  </div>
-                </div>
 
-                {/* Steps Pipeline Visual Timeline */}
-                <div className="space-y-4 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
-                  {selectedSequence.steps.map((step) => (
-                    <div key={step.stepNumber} className="relative pl-10">
-                      {/* Step Badge Dot */}
-                      <div className="absolute left-2 top-3 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--navy)] text-white font-mono text-[10px] font-bold shadow-xs">
-                        {step.stepNumber}
-                      </div>
-
-                      <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-4 shadow-xs">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                          <span className="font-bold text-sm text-[var(--text)]">{step.title}</span>
-                          <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold font-mono">
-                            {step.delay}
-                          </span>
+                  {/* Steps Pipeline Visual Timeline */}
+                  <div className="space-y-4 relative before:absolute before:left-4 before:top-4 before:bottom-4 before:w-0.5 before:bg-slate-200">
+                    {selectedSequence.steps.map((step, index) => (
+                      <div key={step.id} className="relative pl-10">
+                        {/* Step Badge Dot */}
+                        <div className="absolute left-2 top-3 -translate-x-1/2 flex items-center justify-center h-5 w-5 rounded-full bg-[var(--navy)] text-white font-mono text-[10px] font-bold shadow-xs">
+                          {index + 1}
                         </div>
 
-                        <p className="text-xs text-[var(--text-secondary)] mt-1">
-                          Template: <span className="font-medium text-[var(--text)]">{step.template}</span>
-                        </p>
+                        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-alt)] p-4 shadow-xs">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                            <span className="font-bold text-sm text-[var(--text)]">{step.title}</span>
+                            <span className="rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-0.5 text-[10px] font-bold font-mono">
+                              {step.delay}
+                            </span>
+                          </div>
 
-                        <div className="mt-3 flex items-center justify-between text-[11px] pt-2 border-t border-[var(--border)]">
-                          <span className="text-[var(--text-tertiary)]">Channel: {step.channel}</span>
-                          <span className="font-mono text-emerald-600 font-bold">{step.openRate} Open Rate</span>
+                          <p className="text-xs text-[var(--text-secondary)] mt-1">
+                            Template: <span className="font-medium text-[var(--text)]">{step.template}</span>
+                          </p>
+
+                          <div className="mt-3 flex items-center justify-between text-[11px] pt-2 border-t border-[var(--border)]">
+                            <span className="text-[var(--text-tertiary)]">Channel: {step.channel}</span>
+                            <span className="font-mono text-[var(--text-secondary)] truncate max-w-[50%]" title={step.subject}>
+                              {step.subject}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--surface-alt)] p-10 text-center text-xs text-[var(--text-tertiary)]">
+                  Select a sequence to inspect its step-by-step pipeline.
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1253,7 +1386,9 @@ export function EmailOperationsView() {
                 {filteredSuppressions.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="py-12 text-center text-xs text-[var(--text-tertiary)]">
-                      No suppressions match your search filter.
+                      {suppressions.length === 0
+                        ? 'No suppressions recorded yet — bounces, complaints and manual blocks appear here as SES reports them.'
+                        : 'No suppressions match your search filter.'}
                     </td>
                   </tr>
                 ) : (
@@ -1273,8 +1408,8 @@ export function EmailOperationsView() {
                           {sup.reason.replace('_', ' ')}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-[11px] text-[var(--text-secondary)]">{sup.source}</td>
-                      <td className="py-3.5 px-4 text-[11px] text-[var(--text-tertiary)] max-w-xs truncate">{sup.detail}</td>
+                      <td className="py-3.5 px-4 text-[11px] text-[var(--text-secondary)]">{sup.source ?? '—'}</td>
+                      <td className="py-3.5 px-4 text-[11px] text-[var(--text-tertiary)] max-w-xs truncate">{sup.detail ?? '—'}</td>
                       <td className="py-3.5 px-4 text-right">
                         <button
                           type="button"

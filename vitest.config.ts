@@ -10,6 +10,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, 'apps/web/src'),
       '@gccstartup/db': path.resolve(__dirname, 'packages/db/src'),
       '@gccstartup/shared': path.resolve(__dirname, 'packages/shared/src'),
     },
