@@ -41,6 +41,14 @@ const JURISDICTIONS = [
   'KSA MISA Foreign LLC (Riyadh)',
 ]
 
+/** Verb-led submit labels — the button always names the thing being created. */
+const SUBMIT_COPY: Record<QuickCreateTab, string> = {
+  deal: 'Create deal',
+  contact: 'Create contact',
+  task: 'Create task',
+  campaign: 'Continue to wizard',
+}
+
 const CAMPAIGN_SEGMENTS = [
   'All Active Leads (1,240)',
   'High-Value Freezone Prospects ($8,000+)',
@@ -101,34 +109,8 @@ export function QuickCreateModal({
     scheduledDate: 'immediate',
   })
 
-  // Listen to global 'C' keypress to open Quick Create
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger if user is inside an input, textarea, select, or contenteditable
-      const target = e.target as HTMLElement | null
-      const isEditable =
-        target &&
-        (target.tagName === 'INPUT' ||
-          target.tagName === 'TEXTAREA' ||
-          target.tagName === 'SELECT' ||
-          target.isContentEditable)
-
-      if (
-        (e.key === 'c' || e.key === 'C') &&
-        !e.metaKey &&
-        !e.ctrlKey &&
-        !e.altKey &&
-        !isEditable &&
-        !open
-      ) {
-        e.preventDefault()
-        onOpenChange(true)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onOpenChange])
+  // The bare `C` shortcut is owned by `usePlatformShortcuts` in PlatformShell so
+  // it can be suppressed while a `G then …` hub jump is armed.
 
   // Sync tab when initialTab changes
   React.useEffect(() => {
@@ -148,7 +130,7 @@ export function QuickCreateModal({
     try {
       if (activeTab === 'deal') {
         if (!dealForm.dealName || (!dealForm.email && !dealForm.phone)) {
-          throw new Error('Please provide a Deal Name and at least Email or Phone.')
+          throw new Error('Add a deal name plus an email or phone number so the desk can follow up.')
         }
 
         const res = await fetch('/api/crm/leads', {
@@ -167,17 +149,17 @@ export function QuickCreateModal({
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to create pipeline deal.')
+          throw new Error(errData.error || 'We couldn\u2019t create that deal. Check the details and try again.')
         }
 
-        setSuccessMessage(`Pipeline Deal "${dealForm.dealName}" created successfully!`)
+        setSuccessMessage(`Deal \u201c${dealForm.dealName}\u201d created \u2014 opening your pipeline.`)
         setTimeout(() => {
           onOpenChange(false)
           router.push('/crm/deals')
         }, 900)
       } else if (activeTab === 'contact') {
         if (!contactForm.email && !contactForm.phone) {
-          throw new Error('Please provide at least Email or Phone.')
+          throw new Error('Add an email or phone number so we can reach this contact.')
         }
 
         const res = await fetch('/api/crm/leads', {
@@ -196,17 +178,17 @@ export function QuickCreateModal({
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to create contact.')
+          throw new Error(errData.error || 'We couldn\u2019t save that contact. Check the details and try again.')
         }
 
-        setSuccessMessage(`Contact "${contactForm.firstName || contactForm.email}" added to CRM directory!`)
+        setSuccessMessage(`Contact \u201c${contactForm.firstName || contactForm.email}\u201d added to your directory.`)
         setTimeout(() => {
           onOpenChange(false)
           router.push('/crm/contacts')
         }, 900)
       } else if (activeTab === 'task') {
         if (!taskForm.title) {
-          throw new Error('Please enter a task title.')
+          throw new Error('Give the task a short title so the desk knows what to do.')
         }
 
         const res = await fetch('/api/crm/tasks', {
@@ -222,27 +204,27 @@ export function QuickCreateModal({
 
         if (!res.ok) {
           const errData = await res.json().catch(() => ({}))
-          throw new Error(errData.error || 'Failed to create task.')
+          throw new Error(errData.error || 'We couldn\u2019t schedule that task. Try again in a moment.')
         }
 
-        setSuccessMessage(`Task "${taskForm.title}" scheduled!`)
+        setSuccessMessage(`Task \u201c${taskForm.title}\u201d scheduled.`)
         setTimeout(() => {
           onOpenChange(false)
           router.push('/crm')
         }, 900)
       } else if (activeTab === 'campaign') {
         if (!campaignForm.name) {
-          throw new Error('Please enter a campaign name.')
+          throw new Error('Name the campaign so you can find it in reporting later.')
         }
 
-        setSuccessMessage(`Campaign "${campaignForm.name}" created! Opening Campaign Wizard...`)
+        setSuccessMessage(`Campaign \u201c${campaignForm.name}\u201d created \u2014 opening the wizard.`)
         setTimeout(() => {
           onOpenChange(false)
           router.push('/crm/campaigns/new')
         }, 900)
       }
     } catch (err: any) {
-      setErrorMessage(err.message || 'An error occurred while creating.')
+      setErrorMessage(err.message || 'Something went wrong. Nothing was saved.')
     } finally {
       setIsSubmitting(false)
     }
@@ -261,10 +243,10 @@ export function QuickCreateModal({
               </div>
               <div>
                 <DialogPrimitive.Title className="text-sm font-black tracking-tight text-[#0A142F]">
-                  Quick Create Record
+                  Create something new
                 </DialogPrimitive.Title>
                 <DialogPrimitive.Description className="text-[11px] text-[var(--text-tertiary)]">
-                  Instantly dispatch deals, leads, tasks, or marketing sequences
+                  Add a deal, contact, task or campaign without leaving this page
                 </DialogPrimitive.Description>
               </div>
             </div>
@@ -712,7 +694,7 @@ export function QuickCreateModal({
                 </div>
 
                 <div className="rounded-xl bg-slate-50 border border-[var(--border)] p-3 text-xs text-[var(--text-secondary)]">
-                  <span className="font-bold text-[#0A142F]">Campaign Dispatch Notice:</span> Submitting will open the full 3-step variable mapper wizard to verify HSM parameters before delivery.
+                  <span className="font-bold text-[#0A142F]">What happens next:</span> we&rsquo;ll open the 3-step wizard so you can map variables and preview the message before anything is sent.
                 </div>
               </div>
             )}
@@ -720,7 +702,8 @@ export function QuickCreateModal({
             {/* Modal Footer */}
             <div className="flex items-center justify-between border-t border-[var(--border)] pt-4 mt-2">
               <span className="text-[10px] text-[var(--text-tertiary)]">
-                Press <kbd className="font-mono font-bold">ESC</kbd> to close
+                Nothing is saved until you create it &mdash; press{' '}
+                <kbd className="font-mono font-bold">ESC</kbd> to close
               </span>
 
               <div className="flex items-center gap-2">
@@ -743,7 +726,7 @@ export function QuickCreateModal({
                     </>
                   ) : (
                     <>
-                      <span>Save &amp; Open</span>
+                      <span>{SUBMIT_COPY[activeTab]}</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </>
                   )}

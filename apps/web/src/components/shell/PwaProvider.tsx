@@ -47,9 +47,9 @@ export function PwaProvider() {
           GCC
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs font-semibold text-[var(--text)]">Install GCC Startup</p>
+          <p className="text-xs font-semibold text-[var(--text)]">Install the GCC app</p>
           <p className="mt-0.5 text-[11px] text-[var(--text-secondary)]">
-            Add to your home screen for full-screen access to deals and inbox.
+            Add the platform to your home screen for full-screen access to your pipeline and inbox.
           </p>
         </div>
       </div>
@@ -67,7 +67,7 @@ export function PwaProvider() {
           }}
           className="rounded-md bg-[#F26522] px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90"
         >
-          Install
+          Add to home screen
         </button>
       </div>
     </div>

@@ -10,6 +10,7 @@ import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { WebPageJsonLd } from '@/components/seo/WebPageJsonLd'
 import { RelatedLinks } from '@/components/seo/RelatedLinks'
 import { PageCta } from '@/components/PageCta'
+import { staticCountry } from '@/components/site/content'
 
 // Single dynamic segment handling both `countries` and generic `pages` — kept as one
 // route (rather than separate /[country] and /[slug] folders) because Next.js App Router
@@ -19,6 +20,11 @@ async function resolve(slug: string) {
   if (country) return { type: 'country' as const, item: country }
   const page = await getPageBySlug(slug)
   if (page) return { type: 'page' as const, item: page }
+  // The `countries` table is unpopulated on a fresh install, which would 404 every
+  // jurisdiction link in the header, footer and /jurisdictions hub. Fall back to the
+  // static catalogue so those routes always render a real guide.
+  const fallback = staticCountry(slug)
+  if (fallback) return { type: 'country' as const, item: fallback }
   return null
 }
 

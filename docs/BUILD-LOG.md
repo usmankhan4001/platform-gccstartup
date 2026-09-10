@@ -1017,3 +1017,71 @@ implementation, and the platform was made to actually run and deploy.
 - Bots / knowledge bases / WhatsApp campaigns are stored as `flows` rows with
   `trigger_config.entityKind` (documented inline)
 - Bot replies and AI copilot are deterministic (no AI provider wired)
+
+---
+
+### 2026-09-09 — PHASE 6 — CRM pipeline, Lead 360 drawer & renewal ledger
+**Agent:** Agent 3 (CRM pipeline / lead 360 / renewals)
+
+**Files changed:**
+- `apps/web/src/app/crm/page.tsx`, `apps/web/src/app/crm/deals/page.tsx`,
+  `apps/web/src/app/crm/renewals/page.tsx` — now server components that read
+  the database directly (`export const dynamic = 'force-dynamic'`)
+- `apps/web/src/app/crm/contacts/page.tsx` — lead detail now opens the 360 drawer
+- `apps/web/src/components/crm/` — new `stages.ts`, `pipeline-types.ts`,
+  `server-data.ts`, `actions.ts`, `format.ts`, `PipelineKpiHeader.tsx`,
+  `DealsKanban.tsx`, `DealsTable.tsx`, `DealsPipeline.tsx`, `Lead360Drawer.tsx`;
+  `RenewalLedger.tsx` rewritten; `PipelineBoard.tsx` now re-exports the shared
+  `PIPELINE_STAGES`; `CRMWorkspace.tsx` links to `/crm/renewals` instead of
+  mounting the ledger inline
+
+**What was done:**
+- Kanban board over the eight canonical formation stages (New Lead -> Paid App ->
+  KYC Review -> Applied -> Registered -> Banking Filed -> Closed Won/Lost) with
+  high-density cards (company/contact, AED value, jurisdiction, lead score,
+  owner avatar, next-task indicator) and column headers showing count + total
+  value. Drag-and-drop uses pointer events with an HTML5 fallback and persists
+  via `PATCH /api/crm/leads/[id]`; the table view persists bulk moves via
+  `PATCH /api/crm/leads`.
+- Dual-view switcher: Kanban and a high-density sortable data table with search,
+  stage/owner filters, row selection and bulk stage moves.
+- KPI header computed from real rows: active pipeline value, weighted forecast
+  (value x stage probability), average deal cycle (closed `deals` rows, falling
+  back to closed contacts) and win rate.
+- Lead 360 drawer: a full-height right `Sheet` in three columns - properties and
+  vitals (contact info, lifecycle, lead-score meter with factor breakdown, deal
+  value, jurisdiction, editable KYC checklist), omni-channel timeline with a
+  WhatsApp/Email/Note/Task composer, and associations (company, trade license
+  number, four compliance deadlines with countdowns, document vault, deals).
+- Renewal ledger: trade license, visa/Emirates ID, corporate tax and UBO
+  deadlines read from `contacts.custom_fields`, colour-coded health badges
+  (red <7d, orange <30d, gold <60d, green >60d), countdowns, a quarterly
+  forecast and a 60/30/7-day alert ladder that enqueues `outbox_jobs` rows with
+  per-contact/tier idempotency keys.
+
+**Why:** the board, the drawer and the ledger were all client-side shells
+reading a Directus-era API. They now read the real Drizzle tables, and every
+mutation lands in the database.
+
+**Decisions:**
+- No migrations. Compliance dates live in `contacts.custom_fields` (the same
+  keys the existing `/api/crm/leads` routes read and write), so the ledger and
+  the drawer stay consistent without a schema change.
+- Currency is displayed in AED; KPI totals normalise USD at the official peg of
+  3.6725 so mixed-currency columns add up correctly.
+- Records with no compliance dates are still listed (badge "No dates") rather
+  than synthesising fake expiry dates - the drawer is where they get backfilled.
+- `components/crm/actions.ts` holds the mutations that have no REST route
+  (renewal sweep, single reminder, license renewal, note logging, arbitrary
+  `custom_fields` merges). Everything else reuses the existing API routes.
+
+**Tests:** `pnpm typecheck` clean (all 3 packages); `pnpm test` 17/17 passing;
+`next build` compiles all 129 routes; dev smoke test returned 200 for `/crm`,
+`/crm/deals` and `/crm/renewals`. With the database unreachable the pages log
+`[crm/pipeline] load failed` / `[crm/renewals] load failed` and render the empty
+state instead of throwing.
+
+**Blockers:** `pnpm build` fails at the very end on `output: standalone` file
+tracing with `EPERM: operation not permitted, symlink` - a Windows host
+permission issue in `.next/standalone`, unrelated to these changes. Compilation
+and static generation both succeed.

@@ -12,8 +12,22 @@ import { styles } from '@/components/public-hubs/PublicHub'
 import { getAllCountries } from '@/lib/programmatic/countries'
 import type { BusinessModelItem, FaqPair } from '@/lib/programmatic/types'
 import { derivePersonaIntro } from '@/lib/programmatic/derive'
+import { staticBusinessModel, staticCountrySummaries } from '@/components/site/content'
 
 export const dynamic = 'force-dynamic'
+
+/** Live record first, then the static catalogue. */
+async function loadModel(slug: string) {
+  const live = await getBusinessModelBySlug(slug)
+  return live ?? staticBusinessModel(slug)
+}
+
+/** Country list for the "jurisdictions worth shortlisting" cards, falling back to the
+ * static catalogue while the countries table is unpopulated. */
+async function loadCountries() {
+  const live = await getAllCountries()
+  return live.length > 0 ? live : staticCountrySummaries()
+}
 
 function itemList(value: BusinessModelItem['pain_points']): string[] {
   return Array.isArray(value) ? value.map((entry) => (typeof entry?.item === 'string' ? entry.item : '')).filter(Boolean) : []
@@ -25,7 +39,7 @@ function faqPairs(model: BusinessModelItem): FaqPair[] {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
-  const [model, settings] = await Promise.all([getBusinessModelBySlug(slug), getSiteSettings()])
+  const [model, settings] = await Promise.all([loadModel(slug), getSiteSettings()])
   if (!model) return {}
 
   const item = model as unknown as BusinessModelItem
@@ -35,7 +49,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function BusinessModelDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const [raw, settings, countries] = await Promise.all([getBusinessModelBySlug(slug), getSiteSettings(), getAllCountries()])
+  const [raw, settings, countries] = await Promise.all([loadModel(slug), getSiteSettings(), loadCountries()])
   if (!raw) notFound()
 
   const model = raw as unknown as BusinessModelItem

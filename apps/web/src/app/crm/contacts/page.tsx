@@ -21,7 +21,7 @@ import {
   Tag,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
-import { LeadDrawer } from '@/components/crm/LeadDrawer'
+import { Lead360Drawer } from '@/components/crm/Lead360Drawer'
 import { useToast } from '@/components/ui/ToastProvider'
 import { formatShortDate } from '@/components/crm/types'
 
@@ -149,10 +149,11 @@ export default function ContactsPage() {
   return (
     <div className="space-y-6">
       {/* Drawer */}
-      <LeadDrawer
+      <Lead360Drawer
         leadId={selectedLeadId || undefined}
         open={Boolean(selectedLeadId)}
         onClose={() => setSelectedLeadId(null)}
+        onUpdated={() => void fetchContacts()}
       />
 
       {/* Header */}

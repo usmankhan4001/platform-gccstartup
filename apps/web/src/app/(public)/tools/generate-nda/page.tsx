@@ -183,6 +183,7 @@ Authorized Signatory                         Authorized Signatory`
             otherParty,
             jurisdictionChoice,
           }}
+          jurisdiction={jurisdictionChoice}
           estimatedValue={4800}
         />
       </div>

@@ -10,6 +10,7 @@ import { PageCta } from '@/components/PageCta'
 import { getCountriesByIds } from '@/lib/programmatic/countries'
 import type { ComparisonItem, FaqPair } from '@/lib/programmatic/types'
 import { deriveComparisonIntro, deriveComparisonRows, type DerivableJurisdiction } from '@/lib/programmatic/derive'
+import { staticComparison, staticCountrySummaries } from '@/components/site/content'
 
 export const dynamic = 'force-dynamic'
 
@@ -37,19 +38,29 @@ function asFaqPairs(comparison: ComparisonItem): FaqPair[] {
 }
 
 async function load(slug: string) {
-  const comparison = (await getComparisonBySlug(slug)) as unknown as ComparisonItem | null
+  // Live comparison first, then the static catalogue — the `comparisons` table is empty
+  // on a fresh install and every /compare/* route would otherwise 404.
+  const comparison = ((await getComparisonBySlug(slug)) ?? staticComparison(slug)) as unknown as ComparisonItem | null
   if (!comparison) return null
 
-  const countries = await getCountriesByIds([comparison.jurisdiction_a, comparison.jurisdiction_b])
+  const live = await getCountriesByIds([comparison.jurisdiction_a, comparison.jurisdiction_b])
+  // `getCountriesByIds` returns [] until the countries table is migrated, which would
+  // leave the table headed "Jurisdiction A vs Jurisdiction B". Resolve names from the
+  // static catalogue in that case so the comparison still reads correctly.
+  const countries = live.length > 0 ? live : staticCountrySummaries()
   const a = countries.find((c) => c.id === comparison.jurisdiction_a) ?? null
   const b = countries.find((c) => c.id === comparison.jurisdiction_b) ?? null
 
+  // An explicit column label always wins over the country name: a free zone vs mainland
+  // comparison points at the same country twice and would otherwise head both columns
+  // identically.
+  const labels = comparison as unknown as { label_a?: string; label_b?: string }
   const viewA: DerivableJurisdiction = a
-    ? { name: a.name, tax: a.tax, timeline: a.timeline, from_price: a.from_price, facts: a.facts }
-    : { name: 'Jurisdiction A' }
+    ? { name: labels.label_a || a.name, tax: a.tax, timeline: a.timeline, from_price: a.from_price, facts: a.facts }
+    : { name: labels.label_a || 'Jurisdiction A' }
   const viewB: DerivableJurisdiction = b
-    ? { name: b.name, tax: b.tax, timeline: b.timeline, from_price: b.from_price, facts: b.facts }
-    : { name: 'Jurisdiction B' }
+    ? { name: labels.label_b || b.name, tax: b.tax, timeline: b.timeline, from_price: b.from_price, facts: b.facts }
+    : { name: labels.label_b || 'Jurisdiction B' }
 
   return { comparison, viewA, viewB }
 }

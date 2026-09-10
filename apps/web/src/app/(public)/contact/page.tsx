@@ -8,9 +8,22 @@ export const metadata: Metadata = {
   title: 'Contact GCC Startup | Book Structure Review',
   description: 'Speak with an international structuring specialist. Request a customized company formation, banking, or tax residency setup plan within 24 hours.',
   alternates: { canonical: '/contact' },
+  openGraph: {
+    title: 'Contact GCC Startup | Book Structure Review',
+    description: 'Share your company formation context so your enquiry can be routed directly to the right regional structuring specialist.',
+    url: '/contact',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Contact GCC Startup | Book Structure Review',
+    description: 'Speak with an international structuring specialist. Request a customized company formation, banking, or tax residency setup plan within 24 hours.',
+  },
 }
 
-const DEFAULT_COUNTRIES = ['United Arab Emirates', 'Saudi Arabia', 'Bahrain', 'Oman', 'Qatar', 'Singapore', 'Hong Kong', 'United Kingdom', 'United States']
+// Kept in step with the jurisdictions in components/site/content/countries.ts so the
+// dropdown offers every country we actually publish a guide for.
+const DEFAULT_COUNTRIES = ['United Arab Emirates', 'Saudi Arabia', 'Bahrain', 'Oman', 'Qatar', 'Singapore', 'Hong Kong', 'Ireland', 'BVI & Cayman', 'United Kingdom', 'United States']
 const DEFAULT_SERVICES = ['Company Registration', 'Corporate Banking', 'Nominee UBO Service', 'Shelf Companies', 'Tax Residency & Visas', 'Annual Renewals']
 
 export default async function ContactPage() {

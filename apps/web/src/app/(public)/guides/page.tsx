@@ -5,6 +5,7 @@ import { getAllGuides, getSiteSettings } from '@/lib/directus'
 import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 import { getAllCountries } from '@/lib/programmatic/countries'
 import type { GuideItem } from '@/lib/programmatic/types'
+import { staticGuides, staticCountrySummaries } from '@/components/site/content'
 
 export const metadata: Metadata = {
   title: 'International Company Setup Guides & Knowledge Base',
@@ -47,12 +48,15 @@ const GUIDE_GROUP_DESCRIPTION: Record<GuideItem['guide_type'], string> = {
 }
 
 export default async function GuidesHubPage() {
-  const [settings, guides, countries] = await Promise.all([
+  const [settings, liveGuides, liveCountries] = await Promise.all([
     getSiteSettings(),
     getAllGuides(),
     getAllCountries(),
   ])
-  const visible = guides
+  // Both tables are empty on a fresh install — fall back to the static library rather
+  // than rendering the "library is updating" empty state.
+  const visible = liveGuides.length > 0 ? liveGuides : staticGuides()
+  const countries = liveCountries.length > 0 ? liveCountries : staticCountrySummaries()
   const countryBySlug = new Map(countries.map((c) => [c.slug, c.name]))
   const canonicalUrl = `${(settings.site_url || 'https://gccstartup.com').replace(/\/$/, '')}/guides`
 

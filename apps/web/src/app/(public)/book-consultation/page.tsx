@@ -21,7 +21,9 @@ export const metadata: Metadata = {
   },
 }
 
-const DEFAULT_COUNTRIES = ['United Arab Emirates', 'Saudi Arabia', 'Bahrain', 'Oman', 'Qatar', 'Singapore', 'Hong Kong', 'United Kingdom', 'United States']
+// Kept in step with the jurisdictions in components/site/content/countries.ts so the
+// dropdown offers every country we actually publish a guide for.
+const DEFAULT_COUNTRIES = ['United Arab Emirates', 'Saudi Arabia', 'Bahrain', 'Oman', 'Qatar', 'Singapore', 'Hong Kong', 'Ireland', 'BVI & Cayman', 'United Kingdom', 'United States']
 const DEFAULT_SERVICES = ['Company Registration', 'Corporate Banking', 'Nominee UBO Service', 'Shelf Companies', 'Tax Residency & Visas', 'Annual Renewals']
 
 export default async function BookConsultationPage() {

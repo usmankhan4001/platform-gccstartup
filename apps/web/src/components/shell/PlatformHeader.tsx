@@ -12,25 +12,17 @@ import {
   ChevronDown,
   LogOut,
   User,
-  Shield,
   HelpCircle,
   Command,
   Globe,
-  Handshake,
-  Users,
-  Inbox,
-  Megaphone,
-  Zap,
-  FileText,
-  Key,
   Check,
   Building,
   Activity,
   CheckCircle2,
-  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { HUBS, detectActiveHub, type HubConfig } from './types'
+import { HUBS, detectActiveHub } from './types'
+import { Tooltip } from '@/components/ui/Tooltip'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -45,12 +37,15 @@ interface PlatformHeaderProps {
   onOpenQuickCreate?: (tab?: 'deal' | 'contact' | 'task' | 'campaign') => void
   onToggleSidebar?: () => void
   isSidebarOpen?: boolean
+  /** Set while a `G then …` hub jump is armed, so the header can echo it. */
+  pendingPrefix?: string | null
 }
 
 export function PlatformHeader({
   onOpenCommand,
   onOpenQuickCreate,
   onToggleSidebar,
+  pendingPrefix,
 }: PlatformHeaderProps) {
   const pathname = usePathname() || '/crm'
   const router = useRouter()
@@ -133,38 +128,54 @@ export function PlatformHeader({
       </div>
 
       {/* Center: Standardized 6-Hub Switcher */}
-      <nav className="hidden md:flex items-center rounded-lg bg-slate-100/90 p-0.5 border border-[var(--border)] shadow-2xs">
+      <nav
+        aria-label="Hub switcher"
+        className="hidden md:flex items-center gap-0.5 rounded-lg bg-slate-100/90 p-0.5 border border-[var(--border)] shadow-2xs"
+      >
         {HUBS.map((hub) => {
           const isActive = activeHub.id === hub.id
           const Icon = hub.icon
           return (
-            <Link
+            <Tooltip
               key={hub.id}
-              href={hub.href}
-              className={cn(
-                'relative flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold transition-all duration-150',
-                isActive
-                  ? 'bg-[#0A142F] text-white shadow-xs font-bold'
-                  : 'text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text)]'
-              )}
+              side="bottom"
+              content={`${hub.label} — press G then ${hub.shortcut.toUpperCase()}`}
             >
-              <Icon
+              <Link
+                href={hub.href}
+                aria-current={isActive ? 'page' : undefined}
                 className={cn(
-                  'h-3.5 w-3.5 shrink-0 transition-colors',
-                  isActive ? 'text-[var(--orange)]' : 'text-[var(--text-tertiary)]'
+                  'relative flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-all duration-150',
+                  isActive
+                    ? 'bg-[#0A142F] text-white shadow-xs font-bold'
+                    : 'text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text)]'
                 )}
-              />
-              <span className="hidden xl:inline">{hub.label}</span>
-              <span className="xl:hidden">{hub.shortLabel}</span>
-              {isActive && (
-                <span
-                  className="h-1.5 w-1.5 rounded-full"
-                  style={{ backgroundColor: hub.dotColor }}
+              >
+                <Icon
+                  className={cn(
+                    'h-3.5 w-3.5 shrink-0 transition-colors',
+                    isActive ? 'text-[var(--orange)]' : 'text-[var(--text-tertiary)]'
+                  )}
                 />
-              )}
-            </Link>
+                <span>{hub.shortLabel}</span>
+                {/* Active hubs get an orange underline so the pill reads at a glance */}
+                {isActive && (
+                  <span className="absolute inset-x-2 bottom-0.5 h-0.5 rounded-full bg-[var(--orange)]" />
+                )}
+              </Link>
+            </Tooltip>
           )
         })}
+
+        {/* Echo of an armed `G then …` jump sequence */}
+        {pendingPrefix === 'g' && (
+          <span className="flex items-center gap-1 rounded-md bg-[#0A142F] px-1.5 py-0.5 text-[10px] font-bold text-white">
+            G
+            <span className="hidden 2xl:inline font-semibold text-[var(--orange)]">
+              then D · I · M · A · C · O
+            </span>
+          </span>
+        )}
 
         {/* Public Website External Launcher */}
         <div className="mx-1 h-3.5 w-px bg-slate-300" />
@@ -173,7 +184,7 @@ export function PlatformHeader({
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold text-[var(--text-secondary)] hover:bg-white hover:text-[var(--text)] transition-all"
-          title="Open Public Website (gccstartup.com) in new tab"
+          title="Open the live public website in a new tab"
         >
           <Globe className="h-3.5 w-3.5 text-slate-400" />
           <span className="hidden 2xl:inline">Public Site</span>
@@ -189,17 +200,17 @@ export function PlatformHeader({
             <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
             <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-500" />
           </span>
-          <span>Meta WhatsApp Active</span>
+          <span>WhatsApp connected</span>
         </div>
 
         {/* Universal Search Trigger (Cmd+K) */}
         <button
           onClick={onOpenCommand}
           className="flex items-center gap-1.5 sm:gap-2 rounded-lg border border-[var(--border)] bg-slate-50/80 px-2 sm:px-2.5 py-1 text-xs text-[var(--text-tertiary)] hover:border-slate-300 hover:bg-white hover:text-[var(--text)] transition-all shadow-2xs"
-          title="Search anything (Cmd+K / Ctrl+K)"
+          title="Search deals, contacts, campaigns and pages (Cmd+K / Ctrl+K)"
         >
           <Search className="h-3.5 w-3.5 text-slate-400" />
-          <span className="hidden lg:inline font-medium text-[11px]">Search...</span>
+          <span className="hidden lg:inline font-medium text-[11px]">Search the platform</span>
           <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-slate-200 bg-white px-1 py-0.2 text-[9px] font-bold text-slate-500 shadow-2xs">
             ⌘K
           </kbd>
@@ -209,10 +220,10 @@ export function PlatformHeader({
         <button
           onClick={() => onOpenQuickCreate ? onOpenQuickCreate('deal') : undefined}
           className="flex items-center gap-1 rounded-lg bg-[var(--orange)] px-2.5 py-1 text-xs font-bold text-white shadow-xs hover:bg-[var(--orange-dk)] active:scale-97 transition-all"
-          title="Quick Create Record (Press 'C')"
+          title="Create a deal, contact, task or campaign (press C)"
         >
           <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
-          <span className="hidden sm:inline">New</span>
+          <span className="hidden sm:inline">Create</span>
           <kbd className="hidden md:inline-flex items-center rounded bg-black/15 px-1 py-0.2 text-[8px] font-bold tracking-wider uppercase text-white/90">
             C
           </kbd>
@@ -223,7 +234,7 @@ export function PlatformHeader({
           <DropdownMenuTrigger asChild>
             <button
               className="relative flex h-7.5 w-7.5 items-center justify-center rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:bg-slate-100 hover:text-[var(--text)] transition-colors"
-              title="Platform Notifications & Telemetry"
+              title="Notifications — new leads, replies and renewals"
             >
               <Bell className="h-3.5 w-3.5" />
               {unreadNotifications > 0 && (
@@ -236,7 +247,7 @@ export function PlatformHeader({
           <DropdownMenuContent align="end" className="w-80 p-0 shadow-2xl rounded-xl">
             <div className="flex items-center justify-between border-b border-[var(--border)] px-3.5 py-2.5 bg-slate-50">
               <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-[var(--text)]">Platform Alerts</span>
+                <span className="text-xs font-bold text-[var(--text)]">Notifications</span>
                 {unreadNotifications > 0 && (
                   <span className="rounded-full bg-[var(--orange)]/10 px-1.5 py-0.2 text-[9px] font-black text-[var(--orange)]">
                     {unreadNotifications} new
@@ -248,7 +259,7 @@ export function PlatformHeader({
                   onClick={markAllAsRead}
                   className="text-[10px] font-semibold text-[var(--text-tertiary)] hover:text-[var(--orange)] transition-colors"
                 >
-                  Mark all read
+                  Mark all as read
                 </button>
               )}
             </div>
@@ -257,8 +268,8 @@ export function PlatformHeader({
               {notifications.length === 0 ? (
                 <div className="p-5 text-center">
                   <CheckCircle2 className="mx-auto h-6 w-6 text-emerald-500 opacity-80" />
-                  <p className="mt-1.5 text-xs font-semibold text-[var(--text)]">All Systems Operational</p>
-                  <p className="text-[11px] text-[var(--text-tertiary)]">No pending alerts or renewal notices.</p>
+                  <p className="mt-1.5 text-xs font-semibold text-[var(--text)]">You&rsquo;re all caught up</p>
+                  <p className="text-[11px] text-[var(--text-tertiary)]">New leads, replies and renewal reminders will land here.</p>
                 </div>
               ) : (
                 notifications.slice(0, 8).map((notif) => (
@@ -292,7 +303,7 @@ export function PlatformHeader({
                 onClick={() => setNotificationsOpen(false)}
                 className="text-[11px] font-semibold text-[#0A142F] hover:text-[var(--orange)] transition-colors"
               >
-                View Full Audit Logs &rarr;
+                See all platform activity &rarr;
               </Link>
             </div>
           </DropdownMenuContent>
@@ -324,7 +335,7 @@ export function PlatformHeader({
             </div>
 
             {/* Active Desk / Workspace Switcher */}
-            <DropdownMenuLabel>Active Desk Workspace</DropdownMenuLabel>
+            <DropdownMenuLabel>Active desk</DropdownMenuLabel>
             <DropdownMenuItem
               onClick={() => setActiveWorkspace('dubai')}
               className={cn(
@@ -356,25 +367,25 @@ export function PlatformHeader({
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => router.push('/admin/users')}>
               <User className="h-3.5 w-3.5 text-slate-500" />
-              <span>Team &amp; RBAC Roles</span>
+              <span>Team &amp; permissions</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={onOpenCommand}>
               <Command className="h-3.5 w-3.5 text-slate-500" />
-              <span>Keyboard Shortcuts</span>
+              <span>Keyboard shortcuts</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/admin/health')}>
               <Activity className="h-3.5 w-3.5 text-emerald-600" />
-              <span>System Health Diagnostics</span>
+              <span>System health</span>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => window.open('https://gccstartup.com/contact', '_blank')}>
               <HelpCircle className="h-3.5 w-3.5 text-slate-500" />
-              <span>Support &amp; Knowledge Base</span>
+              <span>Help &amp; docs</span>
             </DropdownMenuItem>
 
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleLogout} className="text-rose-600 focus:text-rose-600 focus:bg-rose-50">
               <LogOut className="h-3.5 w-3.5" />
-              <span>Sign out of Platform</span>
+              <span>Sign out</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

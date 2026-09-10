@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
 import { getSiteSettings } from '@/lib/directus'
-import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
+import { ConversionBand, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 
 export const metadata: Metadata = {
   title: 'Company Formation Pricing & Packages',
@@ -54,14 +54,14 @@ const DEFAULT_TIERS = [
     tier_label: 'Instant Vintage Entity',
     featured: false,
     price: '$11,000',
-    price_note: '2–5 year aged clean corporate entity',
-    intro: 'Pre-registered corporate entities with established vintage, clean financial history, and immediate transfer eligibility.',
+    price_note: 'Aged, never-traded entity \u2014 price scales with incorporation date',
+    intro: 'Pre-registered corporate entities with established incorporation history, no trading record and no liabilities, transferable within days.',
     features: [
-      '2–5 Years Verifiable Incorporation History',
-      'Zero Debt & Clean Tax Clearance Certificate',
-      'Same-Day Ownership Transfer',
+      '1–4+ Years Verifiable Incorporation History',
+      'Never Traded \u2014 No Liabilities, Warranted In Writing',
+      'Ownership Transfer In 3–5 Days',
       'Immediate Tender & Contract Eligibility',
-      'Pre-existing Tier-1 Banking Relationships',
+      'Full Due Diligence Pack Before You Commit',
     ],
     who_for: 'Contractors bidding on enterprise/government tenders requiring multi-year company history.',
   },
@@ -125,9 +125,13 @@ export default async function PricingHubPage() {
                   <p>{tier.who_for}</p>
                 </div>
 
-                <div className={styles.cardFooter}>
-                  <Link href="/#lead-form" className={tier.featured ? 'btn btn-primary' : 'btn btn-outline'}>
-                    <span>Request customized quote</span>
+                <div className={styles.cardFooter} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', alignItems: 'flex-start' }}>
+                  <Link href={`/pricing/${tier.slug}`} className={tier.featured ? 'btn btn-primary' : 'btn btn-outline'}>
+                    <span>See what&rsquo;s included</span>
+                    <ArrowRight size={16} aria-hidden />
+                  </Link>
+                  <Link href="/#lead-form" className={styles.arrowLink}>
+                    <span>Request a customised quote</span>
                     <ArrowRight size={16} aria-hidden />
                   </Link>
                 </div>

@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Public-website scope. Loaded after Tailwind so `.site-root` rules win over utility
+   defaults on the marketing pages, and scoped so nothing reaches the CRM/CMS shells. */
+@import "../styles/site.css";
+
 @layer base {
   html, body {
     font-family: var(--font-satoshi), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;

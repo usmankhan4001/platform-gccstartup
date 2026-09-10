@@ -1,7 +1,8 @@
 'use client'
 
 import React, { useState } from 'react'
-import { CheckCircle2, Loader2, Lock, Send, X } from 'lucide-react'
+import { AlertCircle, CheckCircle2, Loader2, Lock, Send, X } from 'lucide-react'
+import { getStoredAttribution } from '@/lib/attribution'
 
 export interface LeadCaptureModalProps {
   isOpen: boolean
@@ -11,6 +12,45 @@ export interface LeadCaptureModalProps {
   calculatorData?: Record<string, unknown>
   estimatedValue?: number
   defaultCountry?: string
+  /** Target jurisdiction, when the tool knows it. Drives desk routing and deal value
+   * server-side, so passing it through is what puts a KSA lead on the Riyadh desk. */
+  jurisdiction?: string
+}
+
+/** Normalises a typed phone number to E.164 before submission.
+ *
+ * The API normalises server-side too, but doing it here means we can reject an
+ * unusable number while the user is still looking at the field rather than accepting
+ * the lead and discovering later that nobody can call them back. Mirrors the server
+ * rules in api/lead/submit so the two never disagree about what is valid. */
+export function toE164(raw: string): string | null {
+  const cleaned = raw.trim().replace(/[^\d+]/g, '')
+  if (!cleaned) return null
+
+  let normalized = cleaned.replace(/^00/, '+')
+
+  // UAE local mobile formats: 0501234567 and 501234567 both mean +971501234567.
+  if (/^05\d{8}$/.test(normalized)) return `+971${normalized.slice(1)}`
+  if (/^5\d{8}$/.test(normalized)) return `+971${normalized}`
+
+  if (!normalized.startsWith('+')) normalized = `+${normalized}`
+
+  // A '+' plus at least 7 digits is the shortest real E.164 number.
+  return /^\+\d{7,15}$/.test(normalized) ? normalized : null
+}
+
+/** Maps the camelCase attribution kept in sessionStorage onto the snake_case keys the
+ * lead endpoint reads. Without this the UTM values are captured on landing and then
+ * silently dropped at submission. */
+function attributionPayload(): Record<string, string | number> {
+  const stored = getStoredAttribution()
+  const mapped: Record<string, string | number> = {}
+  if (stored.utmSource) mapped.utm_source = stored.utmSource
+  if (stored.utmMedium) mapped.utm_medium = stored.utmMedium
+  if (stored.utmCampaign) mapped.utm_campaign = stored.utmCampaign
+  if (stored.utmTerm) mapped.utm_term = stored.utmTerm
+  if (stored.utmContent) mapped.utm_content = stored.utmContent
+  return mapped
 }
 
 export function LeadCaptureModal({
@@ -21,6 +61,7 @@ export function LeadCaptureModal({
   calculatorData,
   estimatedValue = 4800,
   defaultCountry = 'UAE',
+  jurisdiction,
 }: LeadCaptureModalProps) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -28,11 +69,20 @@ export function LeadCaptureModal({
   const [company, setCompany] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError(null)
+
+    const normalizedPhone = toE164(phone)
+    if (!normalizedPhone) {
+      setError('Enter a valid phone number including your country code, for example +971 50 123 4567.')
+      return
+    }
+
     setSubmitting(true)
     try {
       const res = await fetch('/api/lead/submit', {
@@ -41,23 +91,38 @@ export function LeadCaptureModal({
         body: JSON.stringify({
           name,
           email,
-          phone,
+          phone: normalizedPhone,
           company,
           source: `tool_${toolSlug}`,
           tool_slug: toolSlug,
-          country: defaultCountry,
+          country: jurisdiction || defaultCountry,
+          jurisdiction: jurisdiction || defaultCountry,
           estimated_value: estimatedValue,
+          ...attributionPayload(),
           calculator_data: {
             ...calculatorData,
             tool_title: toolTitle,
           },
         }),
       })
+
       if (res.ok) {
         setSubmitted(true)
+        return
       }
+
+      // Surface a failure instead of silently re-enabling the button, which read as a
+      // dead form and lost the lead entirely.
+      const detail = await res.json().catch(() => null)
+      console.error('[LeadCaptureModal] submission rejected', res.status, detail)
+      setError(
+        typeof detail?.error === 'string'
+          ? detail.error
+          : 'We could not send that just now. Please try again, or message us on WhatsApp.'
+      )
     } catch (err) {
-      console.error('Lead modal submission error', err)
+      console.error('[LeadCaptureModal] submission error', err)
+      setError('Network error — please check your connection and try again.')
     } finally {
       setSubmitting(false)
     }
@@ -103,7 +168,17 @@ export function LeadCaptureModal({
               </p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3.5">
+            <form onSubmit={handleSubmit} className="space-y-3.5" noValidate>
+              {error && (
+                <div
+                  role="alert"
+                  className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-[11px] font-semibold text-red-700"
+                >
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-px" aria-hidden />
+                  <span>{error}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-[#0F172A] uppercase mb-1">
                   Full Name *
@@ -139,11 +214,17 @@ export function LeadCaptureModal({
                 <input
                   type="tel"
                   required
+                  autoComplete="tel"
+                  inputMode="tel"
                   placeholder="+971 50 123 4567"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
+                  aria-describedby="lead-phone-hint"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-[#CBD5E1] bg-[#F8FAFC] text-xs text-[#0F172A] focus:outline-none focus:border-[#F26522] focus:bg-white"
                 />
+                <p id="lead-phone-hint" className="mt-1 text-[10px] text-[#64748B]">
+                  Include your country code. UAE mobiles may be entered as 0501234567.
+                </p>
               </div>
 
               <div>

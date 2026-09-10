@@ -34,6 +34,7 @@ export function PlatformSidebar({
 
   return (
     <aside
+      aria-label={`${activeHub.label} navigation`}
       className={cn(
         'relative flex flex-col border-r border-[var(--border)] bg-white transition-all duration-200 select-none z-30 shrink-0 h-full',
         isCollapsed ? 'w-16' : 'w-60'
@@ -165,10 +166,10 @@ export function PlatformSidebar({
               </span>
               <div className="min-w-0">
                 <span className="block text-[10px] font-bold text-[var(--text)] leading-none truncate">
-                  Enterprise Engine
+                  Platform engine
                 </span>
                 <span className="block text-[8px] text-[var(--text-tertiary)] leading-tight mt-0.5">
-                  PostgreSQL • SES • R2
+                  Postgres &middot; SES &middot; R2
                 </span>
               </div>
             </div>
@@ -176,7 +177,7 @@ export function PlatformSidebar({
             <button
               onClick={onToggleCollapse}
               className="rounded p-1 text-[var(--text-tertiary)] hover:bg-slate-100 hover:text-[var(--text)] transition-colors"
-              title="Collapse sidebar"
+              title="Collapse navigation"
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
@@ -186,7 +187,7 @@ export function PlatformSidebar({
             <button
               onClick={onToggleCollapse}
               className="flex h-7 w-7 items-center justify-center rounded-lg border border-[var(--border)] bg-white text-[var(--text-tertiary)] hover:bg-slate-100 hover:text-[var(--text)] shadow-2xs transition-colors"
-              title="Expand sidebar"
+              title="Expand navigation"
             >
               <ChevronRight className="h-3.5 w-3.5" />
             </button>

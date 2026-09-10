@@ -4,6 +4,7 @@ import { ArrowRight } from 'lucide-react'
 import { getAllBusinessModels, getSiteSettings } from '@/lib/directus'
 import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 import type { BusinessModelItem } from '@/lib/programmatic/types'
+import { staticBusinessModels } from '@/components/site/content'
 
 export const metadata: Metadata = {
   title: 'Company Formation by Business Model',
@@ -28,7 +29,9 @@ function itemList(value: BusinessModelItem['pain_points']): string[] {
 
 export default async function BusinessModelsHubPage() {
   const [settings, models] = await Promise.all([getSiteSettings(), getAllBusinessModels()])
-  const visible = models
+  // The `business_models` table is empty on a fresh install, which would render the
+  // "guides are updating" empty state instead of the model library.
+  const visible = models.length > 0 ? models : staticBusinessModels()
   const canonicalUrl = `${(settings.site_url || 'https://gccstartup.com').replace(/\/$/, '')}/business`
 
   return (

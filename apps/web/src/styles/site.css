@@ -1,0 +1,175 @@
+/* Public website scope — everything under `.site-root` (see app/(public)/layout.tsx).
+ *
+ * tokens.css owns the global palette and components.css owns the shared primitives.
+ * This file exists for rules that must apply *only* to the marketing site and must not
+ * leak into the CRM, CMS or Puck editor shells, which share the same stylesheet bundle.
+ *
+ * Two hard rules:
+ *   1. Every colour here is a var() into tokens.css. No new hex values.
+ *   2. Every selector is scoped under `.site-root`. An unscoped rule here will show up
+ *      inside the Puck editor preview iframe, which loads the same stylesheets.
+ */
+
+.site-root {
+  /* Aliases so public-site markup can use intent-named tokens without every component
+     needing to know which base token it maps to. */
+  --site-navy: var(--blue-dkr, #0a142f);
+  --site-orange: var(--orange, #f26522);
+  --site-cyan: var(--cyan, #00a3ff);
+  --site-border: var(--border, #e2e8f0);
+  --site-text: var(--text, #0f172a);
+  --site-surface: var(--surface, #ffffff);
+  --site-muted: var(--text-secondary, #64748b);
+
+  /* Vertical rhythm for the long-form marketing pages. */
+  --site-section-y: var(--space-16, 4rem);
+  --site-section-y-mobile: var(--space-10, 2.5rem);
+}
+
+/* ── Long-form prose ────────────────────────────────────────────
+   The static jurisdiction, service and pricing pages render body copy through the
+   RichText Puck block as raw HTML, so headings, lists and tables inside `.prose` need
+   defaults. Scoped to .site-root so CMS/CRM rich text is untouched. */
+
+.site-root .prose > * + * {
+  margin-top: var(--space-4);
+}
+
+.site-root .prose h3 {
+  margin-top: var(--space-8);
+  margin-bottom: var(--space-2);
+  font-size: 1.25rem;
+  line-height: 1.3;
+}
+
+.site-root .prose p {
+  color: var(--site-muted);
+  line-height: 1.75;
+}
+
+.site-root .prose strong {
+  color: var(--site-text);
+  font-weight: 600;
+}
+
+.site-root .prose ul,
+.site-root .prose ol {
+  padding-left: 1.25rem;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.site-root .prose li {
+  color: var(--site-muted);
+  line-height: 1.7;
+}
+
+.site-root .prose a {
+  color: var(--site-orange);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ── Data tables ────────────────────────────────────────────────
+   Used by the "at a glance" fact tables on jurisdiction and service pages, and by the
+   side-by-side tables on /compare/* and /guides/*. Those comparison pages emit bare
+   <table> elements with no class, so the element selector is deliberate. */
+
+.site-root .prose table,
+.site-root .wrap-narrow > table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: var(--space-4);
+  font-size: 0.9375rem;
+}
+
+.site-root .prose th,
+.site-root .prose td,
+.site-root .wrap-narrow > table th,
+.site-root .wrap-narrow > table td {
+  padding: 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--site-border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.site-root .prose th,
+.site-root .wrap-narrow > table th {
+  font-weight: 600;
+  color: var(--site-text);
+}
+
+.site-root .prose td,
+.site-root .wrap-narrow > table td {
+  color: var(--site-muted);
+}
+
+.site-root .wrap-narrow > table thead th {
+  border-bottom-width: 2px;
+  border-bottom-color: var(--site-navy);
+  white-space: nowrap;
+}
+
+.site-root .prose tr:last-child th,
+.site-root .prose tr:last-child td {
+  border-bottom: none;
+}
+
+/* Comparison tables carry more columns than a phone can show. Allow horizontal scroll
+   rather than letting the layout overflow the viewport. */
+@media (max-width: 640px) {
+  .site-root .wrap-narrow > table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+/* ── Section rhythm ─────────────────────────────────────────────
+   `.section` and `.section-alt` are defined in components.css; these only tighten the
+   spacing on small screens for the public site's longer pages. */
+
+@media (max-width: 640px) {
+  .site-root .section,
+  .site-root .section-alt {
+    padding-top: var(--site-section-y-mobile);
+    padding-bottom: var(--site-section-y-mobile);
+  }
+}
+
+/* ── Tool pages ────────────────────────────────────────────────
+   The 10 calculators under /tools are Tailwind-authored rather than token-authored.
+   These rules only add what Tailwind cannot express against our tokens. */
+
+.site-root .tool-shell {
+  padding-top: var(--space-12);
+  padding-bottom: var(--space-16);
+}
+
+/* Numeric readouts should never reflow as digits change during a calculation. */
+.site-root .tool-figure {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ── Accessibility ─────────────────────────────────────────────
+   Public site is the only surface with anonymous keyboard users arriving cold, so the
+   focus ring is deliberately high-contrast here. */
+
+.site-root a:focus-visible,
+.site-root button:focus-visible,
+.site-root input:focus-visible,
+.site-root select:focus-visible,
+.site-root textarea:focus-visible {
+  outline: 2px solid var(--site-orange);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media print {
+  .site-root .nav,
+  .site-root footer,
+  .site-root .mobile-cta-bar {
+    display: none !important;
+  }
+}

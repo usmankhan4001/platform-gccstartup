@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { ArrowRight, BookOpen, Calculator, CheckCircle2 } from 'lucide-react'
-import { getSiteSettings } from '@/lib/directus'
-import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
+import { ArrowRight, BookOpen, Calculator, CheckCircle2, Library } from 'lucide-react'
+import { getPosts, getSiteSettings } from '@/lib/directus'
+import { ConversionBand, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 
 export const metadata: Metadata = {
   title: 'Free Tools, Calculators & Guides',
@@ -10,15 +10,10 @@ export const metadata: Metadata = {
   alternates: { canonical: '/resources' },
 }
 
-const DEFAULT_POSTS = [
-  { id: '1', title: '2026 UAE Corporate Tax Guide for Freezone Entities', slug: 'uae-corporate-tax-guide-2026', excerpt: 'Comprehensive analysis of Qualifying Free Zone Person (QFZP) 0% rules, qualifying income definitions, and de minimis revenue thresholds.', category: 'Tax & Compliance', reading_time: 7, published_at: '2026-03-01' },
-  { id: '2', title: 'UAE Corporate Bank Account Opening Blueprint', slug: 'uae-bank-account-opening-guide', excerpt: 'Step-by-step checklist to achieve Tier-1 UAE corporate bank pre-approval with Emirates NBD, Mashreq NeoBiz, and Wio Bank.', category: 'Banking', reading_time: 5, published_at: '2026-02-20' },
-  { id: '3', title: 'Nominee UBO & Confidential Ownership Frameworks in DIFC / ADGM', slug: 'nominee-ubo-privacy-framework', excerpt: 'How international founders protect beneficial ownership legally using regulated corporate nominee shareholders and directors.', category: 'Privacy & Structuring', reading_time: 8, published_at: '2026-02-15' },
-]
-
 export default async function ResourcesHubPage() {
-  const settings = await getSiteSettings()
-  const posts = DEFAULT_POSTS
+  // Sourced from the same getter the /blog routes use, so every "Read playbook" link
+  // resolves — a hardcoded list here drifted out of step and produced 404s.
+  const [settings, posts] = await Promise.all([getSiteSettings(), getPosts()])
   const canonicalUrl = `${(settings.site_url || 'https://gccstartup.com').replace(/\/$/, '')}/resources`
 
   return (
@@ -72,6 +67,16 @@ export default async function ResourcesHubPage() {
                 <ArrowRight size={16} />
               </Link>
             </article>
+
+            <article className={styles.resourceCard}>
+              <div className={styles.resourceIcon}><Library size={24} /></div>
+              <h3>Guides &amp; Glossary Library</h3>
+              <p>Itemised formation cost breakdowns, corporate banking notes by jurisdiction, city setup guides, and plain-English definitions of QFZP, UBO and ESR.</p>
+              <Link href="/guides" className={styles.arrowLink}>
+                <span>Browse the guide library</span>
+                <ArrowRight size={16} />
+              </Link>
+            </article>
           </div>
         </div>
       </section>
@@ -86,11 +91,11 @@ export default async function ResourcesHubPage() {
           />
 
           <div className={styles.grid}>
-            {posts.map((post) => (
+            {posts.slice(0, 3).map((post) => (
               <article key={post.id} className={styles.postCard}>
                 <div className={styles.postMeta}>
-                  <span className={styles.category}>{post.category}</span>
-                  <span className={styles.readingTime}>{post.reading_time} min read</span>
+                  {post.category && <span className={styles.category}>{post.category}</span>}
+                  {post.reading_time && <span className={styles.readingTime}>{post.reading_time} min read</span>}
                 </div>
                 <h3>{post.title}</h3>
                 <p>{post.excerpt}</p>

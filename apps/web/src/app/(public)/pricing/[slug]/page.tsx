@@ -9,10 +9,17 @@ import { FaqJsonLd } from '@/components/seo/FaqJsonLd'
 import { BreadcrumbJsonLd } from '@/components/seo/BreadcrumbJsonLd'
 import { RelatedLinks } from '@/components/seo/RelatedLinks'
 import { PageCta } from '@/components/PageCta'
+import { staticPricingTier } from '@/components/site/content'
+
+/** Live record first; static catalogue when the pricing table has no row for the slug. */
+async function loadTier(slug: string) {
+  const live = await getPricingTierBySlug(slug)
+  return live ?? staticPricingTier(slug)
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params
-  const [tier, settings] = await Promise.all([getPricingTierBySlug(slug), getSiteSettings()])
+  const [tier, settings] = await Promise.all([loadTier(slug), getSiteSettings()])
   if (!tier) return {}
   const metadata = buildMetadata(tier, tier.name, settings, `/pricing/${slug}`)
   if (settings.site_url) {
@@ -24,7 +31,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
-  const [tier, settings] = await Promise.all([getPricingTierBySlug(slug), getSiteSettings()])
+  const [tier, settings] = await Promise.all([loadTier(slug), getSiteSettings()])
   if (!tier) notFound()
 
   const url = `${(settings.site_url || '').replace(/\/$/, '')}/pricing/${tier.slug}`

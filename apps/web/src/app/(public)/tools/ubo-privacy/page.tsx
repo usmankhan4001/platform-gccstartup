@@ -125,6 +125,7 @@ export default function UBOPrivacyMatrix() {
             jurisdiction,
             isPublicRegister,
           }}
+          jurisdiction={jurisdiction}
           estimatedValue={12500}
         />
       </div>

@@ -3,8 +3,17 @@
 import * as React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutGrid, MessageSquare, Plus, CalendarClock, Workflow } from 'lucide-react'
+import {
+  LayoutGrid,
+  MessageSquare,
+  Plus,
+  CalendarClock,
+  Workflow,
+  MoreHorizontal,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HUBS, detectActiveHub } from './types'
+import { Sheet, SheetClose, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/Sheet'
 
 /**
  * Mobile bottom tab bar. Only rendered under `lg` — the desktop sidebar covers
@@ -16,6 +25,8 @@ import { cn } from '@/lib/utils'
 export function MobilePwaNav({ onQuickCreate }: { onQuickCreate: () => void }) {
   const pathname = usePathname() || ''
   const [unread, setUnread] = React.useState(0)
+  const [hubsOpen, setHubsOpen] = React.useState(false)
+  const activeHub = detectActiveHub(pathname || '/crm')
 
   // Unread badge is a nice-to-have: a failed fetch must never break the nav.
   React.useEffect(() => {
@@ -33,6 +44,11 @@ export function MobilePwaNav({ onQuickCreate }: { onQuickCreate: () => void }) {
     }
   }, [pathname])
 
+  // Never leave the hub sheet hanging open after a navigation.
+  React.useEffect(() => {
+    setHubsOpen(false)
+  }, [pathname])
+
   const isActive = (href: string) =>
     href === '/crm' ? pathname === '/crm' || pathname === '/crm/deals' : pathname.startsWith(href)
 
@@ -44,30 +60,98 @@ export function MobilePwaNav({ onQuickCreate }: { onQuickCreate: () => void }) {
   ]
 
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-[var(--border)] bg-white lg:hidden"
-      style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
-      aria-label="Primary"
-    >
-      {tabs.slice(0, 2).map((tab) => (
-        <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
-      ))}
+    <>
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex items-stretch border-t border-[var(--border)] bg-white lg:hidden"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        aria-label="Primary"
+      >
+        {tabs.slice(0, 2).map((tab) => (
+          <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
+        ))}
 
-      {/* Elevated centre action */}
-      <div className="relative flex w-16 shrink-0 items-center justify-center">
+        {/* Elevated centre action */}
+        <div className="relative flex w-16 shrink-0 items-center justify-center">
+          <button
+            onClick={onQuickCreate}
+            aria-label="Create a deal, contact, task or campaign"
+            className="absolute -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F26522] text-white shadow-lg active:scale-95"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+
+        {tabs.slice(2).map((tab) => (
+          <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
+        ))}
+
+        {/* Every hub, one tap away — the header switcher is desktop-only */}
         <button
-          onClick={onQuickCreate}
-          aria-label="Quick create"
-          className="absolute -top-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#F26522] text-white shadow-lg active:scale-95"
+          type="button"
+          onClick={() => setHubsOpen(true)}
+          aria-label="Switch hub"
+          className={cn(
+            'flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 text-[10px] font-medium',
+            'text-[var(--text-tertiary)]'
+          )}
         >
-          <Plus className="h-5 w-5" />
+          <MoreHorizontal className="h-5 w-5" />
+          More
         </button>
-      </div>
+      </nav>
 
-      {tabs.slice(2).map((tab) => (
-        <Tab key={tab.href} {...tab} active={isActive(tab.href)} />
-      ))}
-    </nav>
+      <Sheet open={hubsOpen} onOpenChange={setHubsOpen}>
+        <SheetContent side="bottom" closeLabel="Close hub switcher">
+          <SheetHeader>
+            <SheetTitle>Switch hub</SheetTitle>
+            <SheetDescription>
+              You&rsquo;re in {activeHub.label}. Jump to another part of the platform.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="grid grid-cols-2 gap-2 px-5 pb-5">
+            {HUBS.map((hub) => {
+              const Icon = hub.icon
+              const isCurrent = hub.id === activeHub.id
+              return (
+                <SheetClose asChild key={hub.id}>
+                  <Link
+                    href={hub.href}
+                    aria-current={isCurrent ? 'page' : undefined}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-xl border p-3 text-left transition-colors',
+                      isCurrent
+                        ? 'border-[#0A142F] bg-[#0A142F] text-white'
+                        : 'border-[var(--border)] bg-white text-[var(--text)] hover:bg-[var(--surface-alt)]'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+                        isCurrent ? 'bg-white/10 text-[var(--orange)]' : 'bg-slate-100'
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-xs font-bold truncate">{hub.shortLabel}</span>
+                      <span
+                        className={cn(
+                          'block text-[10px] truncate',
+                          isCurrent ? 'text-slate-300' : 'text-[var(--text-tertiary)]'
+                        )}
+                      >
+                        {hub.subtitle}
+                      </span>
+                    </span>
+                  </Link>
+                </SheetClose>
+              )
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
 
@@ -87,6 +171,7 @@ function Tab({
   return (
     <Link
       href={href}
+      aria-current={active ? 'page' : undefined}
       className={cn(
         'flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 pt-1.5 text-[10px] font-medium',
         active ? 'text-[#F26522]' : 'text-[var(--text-tertiary)]'

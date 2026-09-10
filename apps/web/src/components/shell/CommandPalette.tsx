@@ -70,12 +70,12 @@ export function CommandPalette({
 
   const items: CommandItem[] = React.useMemo(() => [
     // 1. Hubs
-    { id: 'hub-crm', title: 'CRM & Deals Hub', subtitle: 'Pipeline deals, contacts & sales OS', category: 'Hubs', href: '/crm', icon: Handshake, badge: 'Hub' },
-    { id: 'hub-inbox', title: 'Unified Inbox Hub', subtitle: 'Meta WhatsApp 2-way & live chat', category: 'Hubs', href: '/crm/inbox', icon: MessageSquare, badge: 'Hub' },
-    { id: 'hub-marketing', title: 'Marketing Hub', subtitle: 'Campaigns, email flows & sequences', category: 'Hubs', href: '/crm/campaigns', icon: Megaphone, badge: 'Hub' },
-    { id: 'hub-automations', title: 'Automations Hub', subtitle: 'Workflows, triggers & AI copilot', category: 'Hubs', href: '/crm/automations', icon: Zap, badge: 'Hub' },
-    { id: 'hub-cms', title: 'CMS & Content Hub', subtitle: 'Visual pages, blog editor & SEO studio', category: 'Hubs', href: '/cms', icon: FileText, badge: 'Hub' },
-    { id: 'hub-admin', title: 'Platform Ops & API Hub', subtitle: 'API keys, webhooks, users & telemetry', category: 'Hubs', href: '/admin', icon: Key, badge: 'Hub' },
+    { id: 'hub-crm', title: 'CRM — deals & pipeline', subtitle: 'Track every incorporation deal from lead to license', category: 'Hubs', href: '/crm', icon: Handshake, badge: 'G D' },
+    { id: 'hub-inbox', title: 'Inbox — WhatsApp & live chat', subtitle: 'Reply to every conversation in one place', category: 'Hubs', href: '/crm/inbox', icon: MessageSquare, badge: 'G I' },
+    { id: 'hub-marketing', title: 'Marketing — campaigns & sequences', subtitle: 'Broadcast, nurture and measure outreach', category: 'Hubs', href: '/crm/campaigns', icon: Megaphone, badge: 'G M' },
+    { id: 'hub-automations', title: 'Automations — workflows & bots', subtitle: 'Let triggers do the follow-up for you', category: 'Hubs', href: '/crm/automations', icon: Zap, badge: 'G A' },
+    { id: 'hub-cms', title: 'CMS — pages, posts & SEO', subtitle: 'Edit the public website without a deploy', category: 'Hubs', href: '/cms', icon: FileText, badge: 'G C' },
+    { id: 'hub-admin', title: 'Ops — users, API keys & health', subtitle: 'Control access, integrations and uptime', category: 'Hubs', href: '/admin', icon: Key, badge: 'G O' },
     { id: 'hub-public', title: 'Public Website (gccstartup.com)', subtitle: 'Launch live public website', category: 'Hubs', href: '/', icon: Globe, external: true },
 
     // 2. Quick Actions
@@ -150,17 +150,8 @@ export function CommandPalette({
     { id: 'page-database', title: 'PostgreSQL Studio', subtitle: 'Drizzle ORM schema viewer and SQL console', category: 'Platform Ops', href: '/admin/database', icon: Database },
   ], [router, onOpenQuickCreate])
 
-  // Global Cmd+K / Ctrl+K listener
-  React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        onOpenChange(!open)
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [open, onOpenChange])
+  // Cmd+K / Ctrl+K is owned by `usePlatformShortcuts` in PlatformShell so the
+  // palette, quick create and hub jumps never fight over the same keystroke.
 
   const filtered = React.useMemo(() => {
     if (!query.trim()) return items
@@ -222,7 +213,7 @@ export function CommandPalette({
               autoFocus
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search hubs, deals, contacts, 10 interactive tools, campaigns, API keys..."
+              placeholder="Search hubs, deals, contacts, campaigns, pages and API keys..."
               className="flex-1 bg-transparent text-sm text-[var(--text)] placeholder-[var(--text-tertiary)] outline-none font-medium"
             />
             {query && (
@@ -244,10 +235,10 @@ export function CommandPalette({
               <div className="py-12 text-center">
                 <Sparkles className="mx-auto h-8 w-8 text-[var(--text-tertiary)] opacity-40" />
                 <p className="mt-2 text-xs font-semibold text-[var(--text)]">
-                  No matching command or page found for &ldquo;{query}&rdquo;
+                  Nothing matches &ldquo;{query}&rdquo; yet
                 </p>
                 <p className="mt-1 text-[11px] text-[var(--text-tertiary)]">
-                  Try searching for Tax Calculator, Deals Kanban, WhatsApp Inbox, or API Keys.
+                  Try &ldquo;pipeline&rdquo;, &ldquo;WhatsApp&rdquo;, &ldquo;campaign&rdquo; or &ldquo;API keys&rdquo; — or press C to create something new.
                 </p>
               </div>
             ) : (
@@ -343,7 +334,18 @@ export function CommandPalette({
                 <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">↵</kbd> select
               </span>
               <span>
-                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">C</kbd> quick create
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">C</kbd> create new
+              </span>
+              <span className="hidden sm:inline">
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">G</kbd>{' '}
+                then{' '}
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">D</kbd>
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">I</kbd>
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">M</kbd>
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">A</kbd>
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">C</kbd>
+                <kbd className="rounded border border-[var(--border)] bg-white px-1 py-0.5 font-bold shadow-2xs">O</kbd>{' '}
+                jump hubs
               </span>
             </div>
             <div className="flex items-center gap-1.5 font-semibold text-[var(--text-secondary)]">

@@ -18,6 +18,7 @@ const pricingLinks = [
 
 const jurisdictionLinks = [
   { label: 'UAE', href: '/uae' },
+  { label: 'Saudi Arabia', href: '/saudi-arabia' },
   { label: 'Bahrain', href: '/bahrain' },
   { label: 'Oman', href: '/oman' },
   { label: 'Qatar', href: '/qatar' },
@@ -32,6 +33,7 @@ const resourceLinks = [
   { label: 'Business Models', href: '/business' },
   { label: 'Guides & Playbooks', href: '/guides' },
   { label: 'Blog & Insights', href: '/blog' },
+  { label: 'Free Tools & Calculators', href: '/tools' },
 ]
 
 const legalLinks = [

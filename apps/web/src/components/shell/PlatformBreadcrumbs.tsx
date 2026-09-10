@@ -25,11 +25,14 @@ export function PlatformBreadcrumbs() {
   return (
     <div className="flex h-8.5 w-full shrink-0 items-center justify-between border-b border-[var(--border)] bg-white px-3 sm:px-4 lg:px-6 select-none shadow-2xs">
       {/* Breadcrumb Navigation Path */}
-      <nav className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] overflow-x-auto no-scrollbar">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex items-center gap-1.5 text-xs text-[var(--text-tertiary)] overflow-x-auto no-scrollbar"
+      >
         <Link
           href={hub.href}
           className="flex items-center gap-1.5 font-bold text-[var(--text-secondary)] hover:text-[#0A142F] transition-colors"
-          title={`Go to ${hub.label}`}
+          title={`Back to the ${hub.label} hub`}
         >
           <span
             className="h-2 w-2 rounded-full"
@@ -63,6 +66,7 @@ export function PlatformBreadcrumbs() {
 
       {/* Right Micro Route Tag */}
       <div className="hidden sm:flex items-center gap-2 text-[10px] text-[var(--text-tertiary)]">
+        <span className="text-[10px] font-medium">Press G then {hub.shortcut.toUpperCase()} to switch hub</span>
         <span className="inline-flex items-center gap-1 rounded bg-slate-100 px-1.5 py-0.2 font-mono text-[9px] text-slate-600 border border-[var(--border)]">
           {pathname}
         </span>

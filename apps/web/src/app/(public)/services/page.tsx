@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight, Building2, Landmark, RefreshCw, ShieldCheck, Check } from 'lucide-react'
 import { getSiteSettings } from '@/lib/directus'
-import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
+import { ConversionBand, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
 
 export const metadata: Metadata = {
   title: 'International Company Formation Services',
@@ -30,9 +30,9 @@ const DEFAULT_SERVICES = [
     id: 'bank-account',
     name: 'Corporate Banking Setup',
     slug: 'bank-account',
-    headline: 'Guaranteed introductions and pre-approval with Tier-1 UAE & international banks.',
-    intro: 'Preparation of business case studies, KYC dossier curation, and direct submission to dedicated corporate relationship managers.',
-    features: ['Wio Bank, Emirates NBD, Mashreq NeoBiz, FAB', 'Multi-currency IBANs (AED, USD, EUR, GBP)', 'Zero rejection guarantee with pre-screening', 'Full payment gateway integration support'],
+    headline: 'Introductions to Tier-1 UAE and international banks, with the file built to pass review.',
+    intro: 'Compliance dossier preparation, business case documentation, and direct submission to corporate relationship managers matched to your activity.',
+    features: ['Wio, Emirates NBD, Mashreq NeoBiz, FAB, RAKBank', 'Multi-currency IBANs (AED, USD, EUR, GBP)', 'Pre-screening against each bank\u2019s stated appetite', 'Payment gateway integration support'],
   },
   {
     id: 'nominee-ubo',
@@ -48,7 +48,7 @@ const DEFAULT_SERVICES = [
     slug: 'shelf-company',
     headline: 'Vintage entities ready for immediate contract bidding and banking.',
     intro: 'Acquire clean, aged UAE and offshore corporate entities with established incorporation dates and spotless compliance history.',
-    features: ['2 to 5+ years verifiable history', 'Clean balance sheet & zero liabilities', 'Same-day ownership transfer execution', 'Established vendor & banking profiles'],
+    features: ['1 to 4+ years verifiable incorporation history', 'Never traded \u2014 no liabilities, warranted in writing', 'Transfer completed in 3 to 5 days', 'Full due diligence pack before you commit'],
   },
   {
     id: 'tax-residency',
@@ -138,8 +138,8 @@ export default async function ServicesHubPage() {
                 </div>
 
                 <div className={styles.cardFooter} style={{ marginTop: 24 }}>
-                  <Link href="/#lead-form" className={styles.arrowLink}>
-                    <span>Inquire about this service</span>
+                  <Link href={`/services/${service.slug}`} className={styles.arrowLink}>
+                    <span>View service details</span>
                     <ArrowRight size={16} aria-hidden />
                   </Link>
                 </div>

@@ -9,6 +9,7 @@ import { CommandPalette } from './CommandPalette'
 import { QuickCreateModal } from './QuickCreateModal'
 import { PwaProvider } from './PwaProvider'
 import { MobilePwaNav } from './MobilePwaNav'
+import { usePlatformShortcuts } from './usePlatformShortcuts'
 import { TooltipProvider } from '@/components/ui/Tooltip'
 import { ToastProvider } from '@/components/ui/ToastProvider'
 import { cn } from '@/lib/utils'
@@ -55,6 +56,12 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
     setQuickCreateOpen(true)
   }
 
+  // Cmd/Ctrl+K opens the palette, `C` opens quick create, `G` then a hub key jumps.
+  const { pendingPrefix } = usePlatformShortcuts({
+    onOpenCommand: () => setCommandOpen(true),
+    onOpenQuickCreate: () => setQuickCreateOpen(true),
+  })
+
   // Detect if page is full-height optimized (e.g. WhatsApp Inbox)
   const isFullHeightPage = pathname.startsWith('/crm/inbox')
 
@@ -85,6 +92,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
             onOpenQuickCreate={handleOpenQuickCreate}
             onToggleSidebar={() => setMobileOpen((prev) => !prev)}
             isSidebarOpen={mobileOpen}
+            pendingPrefix={pendingPrefix}
           />
 
           {/* Body: Sidebar + Main Content */}

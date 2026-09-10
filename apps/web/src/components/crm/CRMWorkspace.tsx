@@ -24,7 +24,7 @@ import { LeadDrawer } from './LeadDrawer'
 import { PipelineBoard } from './PipelineBoard'
 import { TasksView } from './TasksView'
 import { AutomationsView } from './AutomationsView'
-import { RenewalLedger } from './RenewalLedger'
+
 import { AutomationBuilder } from '@/components/admin/automation/AutomationBuilder'
 import { crmFetch, formatMoney, formatShortDate, isOverdue, type CRMLead, type CRMTask, userLabel, type LeadStatus } from './types'
 import { createAbortController } from '@/lib/abort'
@@ -216,7 +216,18 @@ export function CRMWorkspace() {
           />
         )}
 
-        {view === 'renewals' && <RenewalLedger />}
+        {view === 'renewals' && (
+          <div className="crm-empty-panel">
+            <CalendarClock size={22} />
+            <strong>The renewal ledger has its own page</strong>
+            <span>
+              It now loads compliance dates straight from the database.{' '}
+              <a href="/crm/renewals" style={{ color: 'var(--accent)', fontWeight: 700 }}>
+                Open the renewal ledger
+              </a>
+            </span>
+          </div>
+        )}
 
         {!loading && !loadError && view === 'list' && (
           <div className="crm-list card">

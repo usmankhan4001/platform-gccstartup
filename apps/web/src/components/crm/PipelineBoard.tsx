@@ -23,22 +23,11 @@ import {
 import { calculateLeadScore, resolveDeskTag, resolveEstimatedDealValue } from '@/lib/crm/scoring'
 import { formatMoney, formatShortDate, isOverdue, type CRMLead, userLabel, type LeadStatus } from './types'
 
-export const PIPELINE_STAGES: Array<{
-  id: LeadStatus
-  label: string
-  cue: string
-  color: string
-  bgLight: string
-}> = [
-  { id: 'new', label: 'New Lead', cue: 'Inquiry received', color: '#3B82F6', bgLight: 'rgba(59, 130, 246, 0.08)' },
-  { id: 'paid_application', label: 'Paid App', cue: 'Retainer & docs captured', color: '#8B5CF6', bgLight: 'rgba(139, 92, 246, 0.08)' },
-  { id: 'kyc_processing', label: 'KYC Review', cue: 'Passport & UBO compliance', color: '#F59E0B', bgLight: 'rgba(245, 158, 11, 0.08)' },
-  { id: 'applied', label: 'Applied', cue: 'Submitted to E-Registry', color: '#0EA5E9', bgLight: 'rgba(14, 165, 233, 0.08)' },
-  { id: 'registered', label: 'Registered', cue: 'Trade license & MoA issued', color: '#10B981', bgLight: 'rgba(16, 185, 129, 0.08)' },
-  { id: 'banking_filed', label: 'Banking Filed', cue: 'Bank application lodged', color: '#059669', bgLight: 'rgba(5, 150, 105, 0.08)' },
-  { id: 'won', label: 'Closed Won', cue: 'Formation active & live', color: '#047857', bgLight: 'rgba(4, 120, 87, 0.08)' },
-  { id: 'lost', label: 'Closed Lost', cue: 'Disqualified / cancelled', color: '#6B7280', bgLight: 'rgba(107, 114, 128, 0.08)' },
-]
+// The canonical stage list lives in `./stages` so the board, the 360 drawer and
+// the KPI forecast all weight the same columns. Re-exported for existing callers.
+import { PIPELINE_STAGES } from './stages'
+
+export { PIPELINE_STAGES }
 
 const DRAG_THRESHOLD = 6
 

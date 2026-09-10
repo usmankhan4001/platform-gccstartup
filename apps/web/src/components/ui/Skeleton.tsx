@@ -1,42 +1,80 @@
-export function Skeleton({ width, height, lines, variant, className }: {
-  width?: number;
-  height?: number;
-  lines?: number;
-  variant?: 'rounded' | 'circle';
-  className?: string;
-}) {
+import { cn } from '@/lib/utils'
+
+export interface SkeletonProps {
+  width?: number | string
+  height?: number | string
+  /** Render a stack of shimmering lines instead of a single block. */
+  lines?: number
+  variant?: 'rounded' | 'circle' | 'text'
+  className?: string
+}
+
+function toSize(value?: number | string, fallback?: string) {
+  if (value === undefined) return fallback
+  return typeof value === 'number' ? `${value}px` : value
+}
+
+export function Skeleton({ width, height, lines, variant, className }: SkeletonProps) {
   if (lines) {
     return (
       <div className="space-y-2">
         {Array.from({ length: lines }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse rounded bg-[var(--border)]"
-            style={{ height: height || 12, width: width ? `${width}px` : '100%' }}
+            className={cn('animate-pulse rounded bg-[var(--border)]', className)}
+            style={{
+              height: toSize(height, '12px'),
+              width: i === lines - 1 && !width ? '70%' : toSize(width, '100%'),
+            }}
           />
         ))}
       </div>
-    );
+    )
   }
+
   return (
     <div
-      className={['animate-pulse', variant === 'rounded' ? 'rounded-lg' : 'rounded', className || ''].filter(Boolean).join(' ')}
+      aria-hidden="true"
+      className={cn(
+        'animate-pulse bg-[var(--border)]',
+        variant === 'circle' ? 'rounded-full' : variant === 'text' ? 'rounded' : 'rounded-lg',
+        className
+      )}
       style={{
-        width: width ? `${width}px` : '100%',
-        height: height ? `${height}px` : 12,
+        width: toSize(width, '100%'),
+        height: toSize(height, '12px'),
       }}
     />
-  );
+  )
 }
 
-export default function SkeletonCard({ className }: { className?: string }) {
-  return <div className={['animate-pulse rounded bg-[var(--border)]', className].filter(Boolean).join(' ')} />;
+export function SkeletonCard({ className }: { className?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      className={cn('animate-pulse rounded-lg bg-[var(--border)]', className)}
+    />
+  )
 }
 
-export function SkeletonChart() {
-  return <div className="animate-pulse rounded-lg bg-[var(--border)] h-48" />;
+export function SkeletonChart({ className }: { className?: string }) {
+  return <SkeletonCard className={cn('h-48', className)} />
 }
 
-export function SkeletonConversation() {
-  return <div className="animate-pulse rounded-lg bg-[var(--border)] h-16" />;
+export function SkeletonConversation({ className }: { className?: string }) {
+  return <SkeletonCard className={cn('h-16', className)} />
 }
+
+/** Table-shaped placeholder: header row plus `rows` body rows. */
+export function SkeletonTable({ rows = 5 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      <Skeleton height={32} />
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} height={44} />
+      ))}
+    </div>
+  )
+}
+
+export default SkeletonCard

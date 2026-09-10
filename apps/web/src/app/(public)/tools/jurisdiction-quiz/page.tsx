@@ -270,6 +270,7 @@ export default function JurisdictionQuiz() {
             wantsRelocation,
             topMatch: recommendations?.[0]?.name,
           }}
+          jurisdiction={recommendations?.[0]?.name}
           estimatedValue={4800}
         />
       </div>

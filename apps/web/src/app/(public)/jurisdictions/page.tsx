@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
 import { getSiteSettings } from '@/lib/directus'
-import { ConversionBand, EmptyState, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
+import { ConversionBand, HubHero, HubPage, SectionHeader, styles } from '@/components/public-hubs/PublicHub'
+import { getAllCountries } from '@/lib/programmatic/countries'
+import { staticCountrySummaries } from '@/components/site/content'
 
 export const metadata: Metadata = {
   title: 'Compare Company Formation Jurisdictions',
@@ -19,19 +21,11 @@ const criteria = [
   ['06', 'Timing and maintenance', 'Formation speed matters, but so do renewals, accounting, audit, filings, and local requirements.'],
 ]
 
-const DEFAULT_JURISDICTIONS = [
-  { id: 'uae', name: 'United Arab Emirates', slug: 'uae', flag: '🇦🇪', region: 'Middle East', tax: '0% QFZP / 9%', timeline: '48–72 Hours', from_price: '$4,800', headline: 'The global standard for 0% tax structuring and fintech.', intro: 'UAE Freezones offer 100% foreign ownership, 0% personal tax, and zero capital repatriation restrictions.' },
-  { id: 'saudi-arabia', name: 'Saudi Arabia', slug: 'saudi-arabia', flag: '🇸🇦', region: 'Middle East', tax: '20% Corporate / 0% Personal', timeline: '5–7 Days', from_price: '$8,500', headline: 'The largest economy in the GCC with massive Vision 2030 scale.', intro: 'Access government tenders, regional headquarters (RHQ) tax incentives, and the largest domestic market.' },
-  { id: 'bahrain', name: 'Bahrain', slug: 'bahrain', flag: '🇧🇭', region: 'Middle East', tax: '0% Corporate', timeline: '3–5 Days', from_price: '$4,200', headline: 'Cost-effective gateway with 0% corporate tax and direct Saudi causeway access.', intro: 'Low operating overhead, 100% foreign ownership in most activities, and fast-track banking.' },
-  { id: 'oman', name: 'Oman', slug: 'oman', flag: '🇴🇲', region: 'Middle East', tax: '15% / Freezone 0%', timeline: '4–6 Days', from_price: '$4,900', headline: 'Strategic maritime logistics hub with US-Oman Free Trade Agreement.', intro: 'Direct access to Indian Ocean trade corridors and dedicated Special Economic Zones.' },
-  { id: 'qatar', name: 'Qatar', slug: 'qatar', flag: '🇶🇦', region: 'Middle East', tax: '10% / QFC 0%', timeline: '5–7 Days', from_price: '$6,800', headline: 'Ultra-high purchasing power market anchored by Qatar Financial Centre.', intro: 'World-class legal infrastructure based on English Common Law in the QFC.' },
-  { id: 'singapore', name: 'Singapore', slug: 'singapore', flag: '🇸🇬', region: 'Asia Pacific', tax: '17% (Partial Exemption)', timeline: '1–2 Days', from_price: '$3,800', headline: 'Asia’s premier financial hub with strong double-tax treaty network.', intro: 'Unrivaled global banking reputation and startup venture capital ecosystem.' },
-  { id: 'hongkong', name: 'Hong Kong', slug: 'hongkong', flag: '🇭🇰', region: 'Asia Pacific', tax: '8.25% / 16.5% (Territorial 0%)', timeline: '2–3 Days', from_price: '$3,200', headline: 'Premier gateway for global trading, ecommerce, and China connectivity.', intro: 'Territorial tax system where offshore profits are exempt from Hong Kong tax.' },
-]
-
 export default async function JurisdictionsHubPage() {
-  const settings = await getSiteSettings()
-  const countries = DEFAULT_JURISDICTIONS
+  const [settings, liveCountries] = await Promise.all([getSiteSettings(), getAllCountries()])
+  // Sourced from the same static catalogue that backs the /[slug] jurisdiction guides,
+  // so every card here links to a page that actually exists.
+  const countries = liveCountries.length > 0 ? liveCountries : staticCountrySummaries()
   const canonicalUrl = `${(settings.site_url || 'https://gccstartup.com').replace(/\/$/, '')}/jurisdictions`
 
   return (

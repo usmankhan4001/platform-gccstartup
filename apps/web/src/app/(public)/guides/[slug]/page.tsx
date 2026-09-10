@@ -9,6 +9,7 @@ import { RelatedLinks } from '@/components/seo/RelatedLinks'
 import { PageCta } from '@/components/PageCta'
 import type { FaqPair, GuideItem } from '@/lib/programmatic/types'
 import { deriveCostGuideRows, type DerivableJurisdiction } from '@/lib/programmatic/derive'
+import { staticGuide, staticCountry } from '@/components/site/content'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,10 +25,14 @@ function faqPairs(guide: GuideItem): FaqPair[] {
 }
 
 async function load(slug: string) {
-  const guide = (await getGuideBySlug(slug)) as unknown as GuideItem | null
+  // Live guide first, then the static library — the `guides` table is empty on a fresh
+  // install and every /guides/* route would otherwise 404.
+  const guide = ((await getGuideBySlug(slug)) ?? staticGuide(slug)) as unknown as GuideItem | null
   if (!guide) return null
 
-  const country = guide.jurisdiction_slug ? await getCountryBySlug(guide.jurisdiction_slug) : null
+  const country = guide.jurisdiction_slug
+    ? (await getCountryBySlug(guide.jurisdiction_slug)) ?? staticCountry(guide.jurisdiction_slug)
+    : null
   const derivable: DerivableJurisdiction | null = country
     ? { name: country.name, tax: country.tax, timeline: country.timeline, from_price: country.from_price, facts: country.facts }
     : null

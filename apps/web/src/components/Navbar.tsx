@@ -20,6 +20,9 @@ const services: NavItem[] = [
 
 const jurisdictions: NavItem[] = [
   { label: 'UAE', flagCode: COUNTRY_FLAG_CODE.uae, href: '/uae' },
+  // Saudi Arabia carries its own desk and jurisdiction guide, so it belongs in the menu
+  // alongside the UAE. Flag code is inline because lib/flag-codes.ts has no `saudi` key.
+  { label: 'Saudi Arabia', flagCode: 'sa', href: '/saudi-arabia' },
   { label: 'Bahrain', flagCode: COUNTRY_FLAG_CODE.bahrain, href: '/bahrain' },
   { label: 'Oman', flagCode: COUNTRY_FLAG_CODE.oman, href: '/oman' },
   { label: 'Qatar', flagCode: COUNTRY_FLAG_CODE.qatar, href: '/qatar' },
@@ -40,6 +43,7 @@ const resources: NavItem[] = [
   { label: 'Business Models', href: '/business' },
   { label: 'Guides & Playbooks', href: '/guides' },
   { label: 'Blog & Insights', href: '/blog' },
+  { label: 'Free Tools & Calculators', href: '/tools' },
   { label: 'FAQ', href: '/#faq' },
 ]
 

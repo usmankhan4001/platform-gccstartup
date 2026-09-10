@@ -55,6 +55,8 @@ export interface HubConfig {
   accentColor: string
   dotColor: string
   badgeText?: string
+  /** Second key of the `G then …` jump sequence. Unique across hubs. */
+  shortcut: string
   sections: NavSection[]
   match: (pathname: string) => boolean
 }
@@ -69,6 +71,7 @@ export const HUBS: HubConfig[] = [
     icon: Handshake,
     accentColor: 'text-[#1B4FD8]',
     dotColor: '#1B4FD8',
+    shortcut: 'd',
     match: (pathname: string) => {
       if (
         pathname.startsWith('/crm/inbox') ||
@@ -112,6 +115,7 @@ export const HUBS: HubConfig[] = [
     accentColor: 'text-[#25D366]',
     dotColor: '#25D366',
     badgeText: '2-Way Meta API',
+    shortcut: 'i',
     match: (pathname: string) => pathname.startsWith('/crm/inbox'),
     sections: [
       {
@@ -140,6 +144,7 @@ export const HUBS: HubConfig[] = [
     icon: Megaphone,
     accentColor: 'text-[#F26522]',
     dotColor: '#F26522',
+    shortcut: 'm',
     match: (pathname: string) =>
       pathname.startsWith('/crm/campaigns') ||
       pathname.startsWith('/crm/email') ||
@@ -174,6 +179,7 @@ export const HUBS: HubConfig[] = [
     icon: Zap,
     accentColor: 'text-[#D97706]',
     dotColor: '#D97706',
+    shortcut: 'a',
     match: (pathname: string) => pathname.startsWith('/crm/automations'),
     sections: [
       {
@@ -202,6 +208,7 @@ export const HUBS: HubConfig[] = [
     icon: FileText,
     accentColor: 'text-[#16A34A]',
     dotColor: '#16A34A',
+    shortcut: 'c',
     match: (pathname: string) => pathname === '/cms' || pathname.startsWith('/cms/'),
     sections: [
       {
@@ -226,6 +233,7 @@ export const HUBS: HubConfig[] = [
     icon: ShieldCheck,
     accentColor: 'text-[#6366F1]',
     dotColor: '#6366F1',
+    shortcut: 'o',
     match: (pathname: string) => pathname === '/admin' || pathname.startsWith('/admin/'),
     sections: [
       {
@@ -263,4 +271,13 @@ export function detectActiveHub(pathname: string): HubConfig {
     }
   }
   return HUBS[0]
+}
+
+/**
+ * Resolves the second key of a `G then …` sequence to a hub.
+ * Keys: D = CRM, I = Inbox, M = Marketing, A = Automations, C = CMS, O = Ops.
+ */
+export function getHubByShortcut(key: string): HubConfig | undefined {
+  const normalized = key.toLowerCase()
+  return HUBS.find((hub) => hub.shortcut === normalized)
 }

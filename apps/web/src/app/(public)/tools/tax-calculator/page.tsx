@@ -219,6 +219,7 @@ export default function TaxCalculator() {
             annualProfit,
             savings: result?.net_annual_savings,
           }}
+          jurisdiction={targetJurisdiction}
           estimatedValue={result?.net_annual_savings ? Math.min(15000, Math.max(4800, Math.round(result.net_annual_savings * 0.05))) : 4800}
         />
       </div>
