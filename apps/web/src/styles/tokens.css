@@ -141,20 +141,25 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
-body {
+img { display: block; max-width: 100%; }
+a { text-decoration: none; color: inherit; }
+
+/* The marketing typography scale (17px body, 78px display headings, paragraph
+   margins) is a PUBLIC-SITE concern. Scoping it under `.site-root` keeps the
+   platform shell on a dense 14px UI scale — previously every admin/inbox page
+   inherited Babun's editorial sizing and looked bloated and inconsistent. */
+.site-root {
   font-family: var(--font);
   color: var(--text-secondary);
   background: var(--bg);
   font-size: var(--text-body);
   line-height: var(--leading-body);
 }
-img { display: block; max-width: 100%; }
-a { text-decoration: none; color: inherit; }
 
 /* Clash Display is a display face — it carries its weight at 500/600 where a
    grotesque would need 700, and going heavier makes it feel cramped at the large
    sizes this scale reaches. */
-h1, h2, h3, h4 {
+.site-root h1, .site-root h2, .site-root h3, .site-root h4 {
   color: var(--text);
   font-family: var(--font-heading);
   font-weight: 600;
@@ -163,17 +168,18 @@ h1, h2, h3, h4 {
   margin-bottom: var(--space-4);
   margin-top: 0;
 }
-h1 { font-size: clamp(40px, 6.2vw, 78px); line-height: 1.02; letter-spacing: -0.025em; }
-h2 { font-size: clamp(30px, 4.4vw, 54px); letter-spacing: -0.02em; }
-h3 { font-size: clamp(21px, 2.4vw, 28px); }
-h4 { font-size: clamp(18px, 1.6vw, 21px); font-weight: 500; }
-p { color: var(--text-secondary); margin-bottom: var(--space-4); margin-top: 0; }
+.site-root h1 { font-size: clamp(40px, 6.2vw, 78px); line-height: 1.02; letter-spacing: -0.025em; }
+.site-root h2 { font-size: clamp(30px, 4.4vw, 54px); letter-spacing: -0.02em; }
+.site-root h3 { font-size: clamp(21px, 2.4vw, 28px); }
+.site-root h4 { font-size: clamp(18px, 1.6vw, 21px); font-weight: 500; }
+.site-root p { color: var(--text-secondary); margin-bottom: var(--space-4); margin-top: 0; }
 
 /* Babun's supporting-copy sizes — a lead paragraph under a headline, and the
    larger intro text that sits between a heading and body copy. */
-.text-lg { font-size: var(--text-lg); line-height: 1.6; }
-.text-xl { font-size: var(--text-xl); line-height: 1.5; }
-p:last-child, h1:last-child, h2:last-child, h3:last-child, h4:last-child { margin-bottom: 0; }
+.site-root .text-lg { font-size: var(--text-lg); line-height: 1.6; }
+.site-root .text-xl { font-size: var(--text-xl); line-height: 1.5; }
+.site-root p:last-child, .site-root h1:last-child, .site-root h2:last-child,
+.site-root h3:last-child, .site-root h4:last-child { margin-bottom: 0; }
 
 .wrap { width: 100%; max-width: var(--container-max); margin: 0 auto; padding: 0 var(--container-pad); }
 .wrap-narrow { width: 100%; max-width: var(--container-narrow); margin: 0 auto; padding: 0 var(--container-pad); }
@@ -226,18 +232,21 @@ p:last-child, h1:last-child, h2:last-child, h3:last-child, h4:last-child { margi
   html { scroll-behavior: auto; }
 }
 
-/* --- Responsive Utilities --- */
-.flex-wrap { display: flex; flex-wrap: wrap; gap: var(--space-4); }
-.flex-center { display: flex; justify-content: center; align-items: center; }
-.flex-col { display: flex; flex-direction: column; }
-.grid-2-split { display: grid; grid-template-columns: 1fr 1.2fr; gap: var(--space-12); }
-.grid-2-split-rev { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-12); }
+/* --- Responsive Utilities ---
+   Scoped to `.site-root`: these names collide with Tailwind utilities of the same
+   name (.flex-col, .w-full, .max-w-*) and the marketing variants carry extra
+   behaviour (auto margins) the platform must not inherit. */
+.site-root .flex-wrap { display: flex; flex-wrap: wrap; gap: var(--space-4); }
+.site-root .flex-center { display: flex; justify-content: center; align-items: center; }
+.site-root .flex-col { display: flex; flex-direction: column; }
+.site-root .grid-2-split { display: grid; grid-template-columns: 1fr 1.2fr; gap: var(--space-12); }
+.site-root .grid-2-split-rev { display: grid; grid-template-columns: 1.4fr 1fr; gap: var(--space-12); }
 @media (max-width: 900px) {
-  .grid-2-split, .grid-2-split-rev { grid-template-columns: 1fr; gap: var(--space-8); }
+  .site-root .grid-2-split, .site-root .grid-2-split-rev { grid-template-columns: 1fr; gap: var(--space-8); }
 }
-.w-full { width: 100%; }
-.max-w-xs { max-width: 360px; margin-left: auto; margin-right: auto; }
-.max-w-md { max-width: 600px; margin-left: auto; margin-right: auto; }
-.max-w-lg { max-width: 640px; margin-left: auto; margin-right: auto; }
-.max-w-xl { max-width: 720px; margin-left: auto; margin-right: auto; }
-.text-center { text-align: center; }
+.site-root .w-full { width: 100%; }
+.site-root .max-w-xs { max-width: 360px; margin-left: auto; margin-right: auto; }
+.site-root .max-w-md { max-width: 600px; margin-left: auto; margin-right: auto; }
+.site-root .max-w-lg { max-width: 640px; margin-left: auto; margin-right: auto; }
+.site-root .max-w-xl { max-width: 720px; margin-left: auto; margin-right: auto; }
+.site-root .text-center { text-align: center; }

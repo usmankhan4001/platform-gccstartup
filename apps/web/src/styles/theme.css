@@ -1,0 +1,86 @@
+/*
+ * Tailwind v4 theme registration — the bridge between Tailwind utility classes
+ * and the design tokens in tokens.css.
+ *
+ * WHY THIS FILE EXISTS
+ * Three component generations in this repo speak three different class
+ * vocabularies, and none of them resolved to real colours without this block:
+ *
+ *   1. WayApp/shadcn semantic  → bg-card, text-foreground, bg-muted,
+ *                                text-muted-foreground, border-border, bg-accent,
+ *                                bg-primary, bg-wa, bg-chat-canvas, text-2xs,
+ *                                bg-chart-*, ring-ring, border-input
+ *   2. Admin components        → text-text, text-text-secondary, bg-bg,
+ *                                bg-bg-secondary, text-danger, bg-danger-lt,
+ *                                border-danger-border, text-primary
+ *   3. var() arbitrary values  → bg-[var(--surface)] (shell + CRM — always worked)
+ *
+ * Without an `@theme` block, Tailwind v4 emits no CSS for (1) and (2): cards were
+ * transparent, borders invisible, the WhatsApp send button unrendered. Every
+ * mapping below points at a tokens.css variable so light/dark and brand changes
+ * stay single-source.
+ *
+ * `inline` makes the generated utilities reference the var() directly rather than
+ * copying the value, so runtime token swaps (e.g. [data-theme]) still apply.
+ */
+
+@theme inline {
+  /* ── shadcn semantic vocabulary (WayApp generation) ─────────────────────── */
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --color-card: var(--surface);
+  --color-card-foreground: var(--text);
+  --color-popover: var(--surface);
+  --color-popover-foreground: var(--text);
+  --color-primary: var(--orange);
+  --color-primary-foreground: #ffffff;
+  --color-secondary: var(--surface-alt);
+  --color-secondary-foreground: var(--text);
+  --color-muted: var(--surface-hover);
+  --color-muted-foreground: var(--text-tertiary);
+  --color-accent: var(--surface-hover);
+  --color-accent-foreground: var(--text);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: #ffffff;
+  --color-border: var(--border);
+  --color-input: var(--border);
+  --color-ring: var(--blue);
+
+  /* ── Admin vocabulary (text-text / bg-bg / border-border) ───────────────── */
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-bg: var(--bg);
+  --color-bg-secondary: var(--surface-alt);
+
+  /* ── Status vocabulary (text-danger / bg-success / text-warning / text-info) */
+  --color-danger: var(--danger);
+  --color-danger-lt: var(--danger-lt);
+  --color-danger-border: var(--danger-border);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--blue);
+  --color-gold: var(--gold);
+  --color-gold-lt: var(--gold-lt);
+  --color-gold-dk: var(--gold-dk);
+
+  /* ── WhatsApp / WayApp vocabulary ───────────────────────────────────────── */
+  --color-wa: var(--whatsapp);
+  --color-wa-hover: #20b858;
+  --color-wa-foreground: #ffffff;
+  --color-wa-bubble-out: #d9fdd3;
+  --color-wa-bubble-in: #ffffff;
+  --color-chat-canvas: #ece5dd;
+
+  /* ── Charts ─────────────────────────────────────────────────────────────── */
+  --color-chart-1: var(--blue);
+  --color-chart-2: var(--orange);
+  --color-chart-3: var(--success);
+  --color-chart-4: var(--gold);
+  --color-chart-5: #8b5cf6;
+  --color-chart-6: var(--sky-dk);
+
+  /* ── Smallest sanctioned UI text — badges, metadata, timestamps ─────────── */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+}

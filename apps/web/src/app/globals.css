@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind theme registration — maps every component vocabulary (shadcn semantic,
+   admin text-text/bg-bg, WayApp wa/chat-canvas, charts, text-2xs) onto tokens.css.
+   Without this, 651 utility classes across 29 files emitted no CSS at all. */
+@import "../styles/theme.css";
+
 /* Public-website scope. Loaded after Tailwind so `.site-root` rules win over utility
    defaults on the marketing pages, and scoped so nothing reaches the CRM/CMS shells. */
 @import "../styles/site.css";
