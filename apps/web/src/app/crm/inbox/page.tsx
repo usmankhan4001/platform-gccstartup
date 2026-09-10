@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils'
 import { formatTimeAgo } from '@/lib/utils'
 import { ChatWindow } from '@/components/inbox/ChatWindow'
 import { NewChatModal } from '@/components/inbox/NewChatModal'
+import { CrmContextDrawer } from '@/components/inbox/CrmContextDrawer'
 import { Button } from '@/components/ui/Button'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -393,11 +394,23 @@ function InboxContent() {
       {/* CENTER & RIGHT PANES: 2-Way WhatsApp Canvas & CRM Context Drawer */}
       <div className={cn('flex h-full min-w-0 flex-1 flex-col bg-[var(--surface-alt)]', selectedContact ? 'flex' : 'hidden lg:flex')}>
         {selectedContact ? (
-          <ChatWindow
-            contact={selectedContact}
-            onRefreshList={() => fetchConversations()}
-            onBackMobile={() => setSelectedContact(null)}
-          />
+          <div className="flex h-full min-w-0 flex-1">
+            {/* Conversation canvas */}
+            <div className="flex h-full min-w-0 flex-1 flex-col">
+              <ChatWindow
+                contact={selectedContact}
+                onRefreshList={() => fetchConversations()}
+                onBackMobile={() => setSelectedContact(null)}
+              />
+            </div>
+            {/* Right: CRM context drawer (desktop only) */}
+            <div className="hidden xl:block w-80 shrink-0 border-l border-[var(--border)] bg-[var(--surface)] overflow-y-auto">
+              <CrmContextDrawer
+                contact={{ ...selectedContact, id: selectedContact.id || selectedContact.contactId }}
+                onChanged={() => fetchConversations()}
+              />
+            </div>
+          </div>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center space-y-4 bg-[var(--surface)] p-8 text-center">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--orange-lt)] text-[var(--orange)] shadow-xs">

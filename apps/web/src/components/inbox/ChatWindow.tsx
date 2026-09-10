@@ -54,6 +54,10 @@ import { Input } from '@/components/ui/Input';
 import { AudioVoicePlayer } from './AudioVoicePlayer';
 import { VoiceNoteRecorder } from './VoiceNoteRecorder';
 import { MediaLightbox } from './MediaLightbox';
+import { DeliveryTicks } from './DeliveryTicks';
+import { MacroAutocomplete, DEFAULT_MACROS, filterMacros } from './MacroAutocomplete';
+import { TemplatePicker } from './TemplatePicker';
+import { CrmContextDrawer } from './CrmContextDrawer';
 // TODO: Replace with platform sound utility
 // import { playOutgoingPop } from '@/lib/notifications/sound';
 const playOutgoingPop = () => {};
@@ -372,6 +376,21 @@ export function ChatWindow({ contact, onRefreshList, onBackMobile }: ChatWindowP
       setShowSnippetDropdown(false);
     }
   };
+
+  // DB snippets merged over the built-in sales macros so agents keep one
+  // autocomplete surface — the macros are the floor, snippets the overlay.
+  const allMacros = React.useMemo(() => {
+    const dbMacros = snippets.map((s) => ({
+      id: s.id,
+      shortcut: s.shortcut,
+      title: s.title,
+      preview: s.content,
+      content: s.content,
+      builtIn: false,
+    }));
+    const seen = new Set(dbMacros.map((m) => m.shortcut));
+    return [...dbMacros, ...DEFAULT_MACROS.filter((m) => !seen.has(m.shortcut))];
+  }, [snippets]);
 
   const handleSelectSnippet = async (snippet: any) => {
     setText(snippet.content);
@@ -1093,17 +1112,7 @@ export function ChatWindow({ contact, onRefreshList, onBackMobile }: ChatWindowP
                         }`}
                       >
                         <span className="font-mono text-2xs">{formatDateTime(m.timestamp)}</span>
-                        {isOutbound && (
-                          <CheckCheck
-                            className={`w-3.5 h-3.5 ${
-                              m.status === 'READ'
-                                ? 'text-info font-normal'
-                                : m.status === 'DELIVERED'
-                                ? 'text-muted-foreground'
-                                : 'text-muted-foreground'
-                            }`}
-                          />
-                        )}
+                        {isOutbound && <DeliveryTicks status={m.status} />}
                       </div>
                     </div>
 
@@ -1275,33 +1284,13 @@ export function ChatWindow({ contact, onRefreshList, onBackMobile }: ChatWindowP
         <div className="p-3 bg-card border-t border-border relative">
           {/* Canned Snippet Suggestions Autocomplete Drawer */}
           {showSnippetDropdown && (
-            <div className="absolute bottom-16 left-4 right-4 bg-card rounded-2xl border border-border shadow-xl p-2.5 z-40 max-h-56 overflow-y-auto space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
-              <div className="px-2 py-1 text-2xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center justify-between">
-                <span>Canned Snippets (Type shortcut or click to insert)</span>
-                <span className="text-2xs text-muted-foreground">Esc to close</span>
-              </div>
-              {snippets
-                .filter((s) => s.shortcut.toLowerCase().includes(snippetFilter))
-                .map((snip) => (
-                  <div
-                    key={snip.id}
-                    onClick={() => handleSelectSnippet(snip)}
-                    className="p-2 rounded-xl hover:bg-accent hover:border-emerald-200 border border-transparent flex items-center justify-between gap-2 cursor-pointer transition-all active:scale-[0.99]"
-                  >
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono font-semibold text-xs text-emerald-800 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/80">
-                          {snip.shortcut}
-                        </span>
-                        <span className="font-semibold text-xs text-foreground truncate">{snip.title}</span>
-                      </div>
-                      <p className="text-2xs text-muted-foreground truncate mt-0.5">{snip.content}</p>
-                    </div>
-                    <span className="text-2xs font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground shrink-0">
-                      {snip.category}
-                    </span>
-                  </div>
-                ))}
+            <div className="relative">
+              <MacroAutocomplete
+                macros={filterMacros(allMacros, snippetFilter)}
+                activeIndex={0}
+                onSelect={(macro) => handleSelectSnippet({ ...macro, category: macro.builtIn ? 'Macro' : 'Snippet' })}
+                onHover={() => {}}
+              />
             </div>
           )}
 
@@ -1497,44 +1486,14 @@ export function ChatWindow({ contact, onRefreshList, onBackMobile }: ChatWindowP
 
           {/* Quick Template Picker Drawer */}
           {isTemplatePickerOpen && (
-            <div className="mt-3 p-4 bg-card rounded-2xl border border-border shadow-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-foreground">Select Approved WhatsApp Template</span>
-                <button
-                  onClick={() => setIsTemplatePickerOpen(false)}
-                  className="text-xs text-muted-foreground hover:text-foreground p-1 rounded-lg"
-                >
-                  Close
-                </button>
-              </div>
-
-              {templates.length === 0 ? (
-                <p className="text-xs text-muted-foreground py-2">
-                  No approved templates found. Create or sync templates in the Templates tab.
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto">
-                  {templates.map((tpl) => (
-                    <div
-                      key={tpl.id}
-                      className="p-3 rounded-xl border border-border bg-muted hover:border-emerald-500 hover:bg-emerald-50/50 flex items-center justify-between gap-2 cursor-pointer transition-all active:scale-[0.99]"
-                      onClick={() => handleSendTemplate(tpl)}
-                    >
-                      <div className="min-w-0">
-                        <h5 className="text-xs font-semibold text-foreground font-mono">{tpl.name}</h5>
-                        <p className="text-2xs text-muted-foreground truncate">{tpl.category} &bull; {tpl.language}</p>
-                      </div>
-                      <button
-                        type="button"
-                        disabled={isSending}
-                        className="px-3 py-1 rounded-lg bg-primary hover:bg-primary/90 text-white text-2xs font-semibold shrink-0 shadow-2xs"
-                      >
-                        {isSending ? 'Sending...' : 'Send'}
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+            <div className="mt-3">
+              <TemplatePicker
+                templates={templates}
+                sending={isSending}
+                contactName={contactName}
+                onSend={(tpl) => handleSendTemplate(tpl)}
+                onClose={() => setIsTemplatePickerOpen(false)}
+              />
             </div>
           )}
         </div>

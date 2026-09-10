@@ -579,6 +579,33 @@ export function VisualWorkflowBuilder() {
     showSuccess(`Loaded workflow template: ${preset.name}`)
   }
 
+  // Persist the current canvas to the `flows` table via /api/flows. The API
+  // accepts nodes/edges as arrays or JSON strings and owns validation.
+  const [isSaving, setIsSaving] = useState(false)
+  const handleSaveFlow = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/flows', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: currentPreset.name,
+          description: currentPreset.description,
+          nodes: JSON.stringify(nodes),
+          edges: JSON.stringify(edges),
+          triggerType: 'lead_created',
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to save flow')
+      showSuccess(`Workflow "${currentPreset.name}" saved to the automation engine`)
+    } catch (err: any) {
+      showError(err.message || 'Failed to save workflow')
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
   // Debugger: Reset
   const resetDebugger = () => {
     setDebugStepIndex(-1)
@@ -789,6 +816,16 @@ export function VisualWorkflowBuilder() {
           >
             <FileCode className="h-3.5 w-3.5 mr-1" />
             Logs ({debugLogs.length})
+          </Button>
+
+          <Button
+            size="sm"
+            onClick={handleSaveFlow}
+            disabled={isSaving}
+            className="bg-[var(--orange)] text-white text-xs"
+          >
+            <Check className="h-3.5 w-3.5 mr-1" />
+            {isSaving ? 'Saving...' : 'Save Workflow'}
           </Button>
         </div>
       </div>
