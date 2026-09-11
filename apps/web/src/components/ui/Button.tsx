@@ -31,29 +31,30 @@ export type CommonProps = StyleProps & { children?: ReactNode }
  * those never existed in the stylesheet — `size="sm"` used to be a no-op.
  */
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 rounded-full border-2 border-transparent text-center font-bold leading-[1.2] no-underline transition-colors duration-300 focus-visible:outline-[2px_solid_var(--accent)] focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-[var(--border)] disabled:text-[var(--text-tertiary)] disabled:shadow-none',
+  'inline-flex items-center justify-center gap-1.5 whitespace-nowrap text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-950 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer',
   {
     variants: {
       variant: {
-        primary: 'bg-[var(--accent)] text-white hover:bg-[var(--navy)] active:bg-[var(--orange-dk)]',
+        primary: 'bg-[#0A142F] text-white hover:bg-slate-800 shadow-2xs active:scale-[0.98]',
+        accent: 'bg-[var(--orange)] text-white hover:bg-[var(--orange-dk)] shadow-xs active:scale-[0.98]',
         secondary:
-          'border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text)] hover:border-[var(--border-hover)] hover:bg-[var(--surface-hover)]',
+          'border border-slate-200 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-300 shadow-2xs active:scale-[0.98]',
         outline:
-          'border-[var(--navy)] bg-transparent text-[var(--navy)] hover:bg-[var(--navy)] hover:text-white',
+          'border border-slate-200 bg-transparent text-slate-800 hover:bg-slate-100 active:scale-[0.98]',
         ghost:
-          'bg-transparent text-[var(--text-secondary)] hover:bg-[var(--surface-hover)] hover:text-[var(--text)]',
-        destructive: 'bg-[var(--danger)] text-white hover:bg-[#B91C1C]',
-        danger: 'bg-[var(--danger)] text-white hover:bg-[#B91C1C]',
-        gold: 'bg-[var(--gold)] text-white hover:bg-[var(--gold-dk)]',
-        wa: 'bg-[var(--whatsapp)] text-white hover:bg-[#1DA851]',
+          'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
+        destructive: 'bg-rose-600 text-white hover:bg-rose-700 shadow-2xs active:scale-[0.98]',
+        danger: 'bg-rose-600 text-white hover:bg-rose-700 shadow-2xs active:scale-[0.98]',
+        gold: 'bg-amber-600 text-white hover:bg-amber-700 shadow-2xs active:scale-[0.98]',
+        wa: 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-2xs active:scale-[0.98]',
       },
       size: {
-        xs: 'px-3 py-1 text-[11px]',
-        sm: 'px-4 py-1.5 text-xs',
-        md: 'px-8 py-[15px] text-[17px]',
-        default: 'px-8 py-[15px] text-[17px]',
-        lg: 'px-10 py-4 text-lg',
-        icon: 'h-9 w-9 p-0 text-sm',
+        xs: 'h-7 px-2.5 text-[11px] rounded-md',
+        sm: 'h-8 px-3 text-xs rounded-lg',
+        md: 'h-9 px-4 text-xs rounded-lg',
+        default: 'h-8.5 px-3.5 text-xs rounded-lg',
+        lg: 'h-10 px-5 text-sm rounded-lg',
+        icon: 'h-8.5 w-8.5 p-0 rounded-lg',
       },
     },
     defaultVariants: {

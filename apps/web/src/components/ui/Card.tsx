@@ -1,74 +1,80 @@
-import type { HTMLAttributes, ReactNode } from 'react'
+import * as React from 'react'
+import { cn } from '@/lib/utils'
 
-export function Card({
-  featured,
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { featured?: boolean; children?: ReactNode }) {
-  return (
-    <div className={['card', featured ? 'card-featured' : '', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </div>
-  )
-}
+const Card = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement> & { featured?: boolean }
+>(({ className, featured, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn(
+      'rounded-xl border border-slate-200/80 bg-white text-slate-900 shadow-2xs transition-all',
+      featured && 'border-[var(--orange)] shadow-xs',
+      className
+    )}
+    {...props}
+  />
+))
+Card.displayName = 'Card'
 
-export function CardHeader({
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { children?: ReactNode }) {
-  return (
-    <div className={['card-header', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </div>
-  )
-}
+const CardHeader = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn('flex flex-col space-y-1.5 p-4 sm:p-5', className)}
+    {...props}
+  />
+))
+CardHeader.displayName = 'CardHeader'
 
-export function CardTitle({
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLHeadingElement> & { children?: ReactNode }) {
-  return (
-    <h3 className={['card-title', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </h3>
-  )
-}
+const CardTitle = React.forwardRef<
+  HTMLHeadingElement,
+  React.HTMLAttributes<HTMLHeadingElement>
+>(({ className, ...props }, ref) => (
+  <h3
+    ref={ref}
+    className={cn(
+      'text-sm sm:text-base font-bold leading-none tracking-tight text-slate-900',
+      className
+    )}
+    {...props}
+  />
+))
+CardTitle.displayName = 'CardTitle'
 
-export function CardDescription({
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLParagraphElement> & { children?: ReactNode }) {
-  return (
-    <p className={['card-description text-sm text-[var(--text-secondary)]', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </p>
-  )
-}
+const CardDescription = React.forwardRef<
+  HTMLParagraphElement,
+  React.HTMLAttributes<HTMLParagraphElement>
+>(({ className, ...props }, ref) => (
+  <p
+    ref={ref}
+    className={cn('text-xs text-slate-500 leading-normal', className)}
+    {...props}
+  />
+))
+CardDescription.displayName = 'CardDescription'
 
-export function CardContent({
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { children?: ReactNode }) {
-  return (
-    <div className={['card-content', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </div>
-  )
-}
+const CardContent = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn('p-4 sm:p-5 pt-0 sm:pt-0', className)} {...props} />
+))
+CardContent.displayName = 'CardContent'
 
-export function CardFooter({
-  className = '',
-  children,
-  ...rest
-}: HTMLAttributes<HTMLDivElement> & { children?: ReactNode }) {
-  return (
-    <div className={['card-footer', className].filter(Boolean).join(' ')} {...rest}>
-      {children}
-    </div>
-  )
-}
+const CardFooter = React.forwardRef<
+  HTMLDivElement,
+  React.HTMLAttributes<HTMLDivElement>
+>(({ className, ...props }, ref) => (
+  <div
+    ref={ref}
+    className={cn('flex items-center p-4 sm:p-5 pt-0 sm:pt-0', className)}
+    {...props}
+  />
+))
+CardFooter.displayName = 'CardFooter'
+
+export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+

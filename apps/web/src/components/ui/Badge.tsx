@@ -9,23 +9,23 @@ import { cn } from '@/lib/utils'
 export type BadgeTone = 'accent' | 'info' | 'success' | 'warning' | 'danger' | 'destructive' | 'gold' | 'default'
 
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 rounded-full border px-3 py-[5px] text-xs font-bold tracking-[0.03em] whitespace-nowrap',
+  'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-[11px] font-semibold tracking-normal whitespace-nowrap select-none',
   {
     variants: {
       variant: {
-        default: 'border-[var(--border)] bg-[var(--surface-alt)] text-[var(--text-secondary)]',
+        default: 'border-slate-200 bg-slate-100/80 text-slate-700',
         accent:
-          'border-[rgba(242,101,34,0.2)] bg-[var(--orange-lt)] text-[var(--orange-dk)]',
-        success: 'border-[var(--green-border)] bg-[var(--green-lt)] text-[var(--green-dk)]',
-        warning: 'border-[rgba(217,119,6,0.25)] bg-[var(--gold-lt)] text-[var(--gold-dk)]',
-        destructive: 'border-[var(--danger-border)] bg-[var(--danger-lt)] text-[var(--danger)]',
-        danger: 'border-[var(--danger-border)] bg-[var(--danger-lt)] text-[var(--danger)]',
-        gold: 'border-[var(--gold)] bg-[var(--gold)] text-white',
-        info: 'border-[rgba(27,79,216,0.15)] bg-[var(--blue-lt)] text-[var(--blue-dk)]',
+          'border-orange-200/70 bg-orange-50 text-orange-700',
+        success: 'border-emerald-200/70 bg-emerald-50 text-emerald-700',
+        warning: 'border-amber-200/70 bg-amber-50 text-amber-800',
+        destructive: 'border-rose-200/70 bg-rose-50 text-rose-700',
+        danger: 'border-rose-200/70 bg-rose-50 text-rose-700',
+        gold: 'border-amber-300 bg-amber-100 text-amber-900',
+        info: 'border-blue-200/70 bg-blue-50 text-blue-700',
       },
       size: {
-        sm: 'px-2 py-0.5 text-[10px]',
-        default: 'px-3 py-[5px] text-xs',
+        sm: 'px-1.5 py-0 text-[9px] rounded',
+        default: 'px-2 py-0.5 text-[11px]',
       },
     },
     defaultVariants: {

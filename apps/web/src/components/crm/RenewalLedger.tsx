@@ -225,62 +225,70 @@ export function RenewalLedger({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search company, license number, contact..."
-            aria-label="Search renewals"
-            className="w-full rounded-full border border-[var(--border)] bg-white py-2 pl-9 pr-3 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-slate-200 bg-white p-2 sm:p-2.5 shadow-2xs">
+        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[280px]">
+          <div className="relative min-w-[200px] flex-1 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search company, license number, contact..."
+              aria-label="Search renewals"
+              className="h-8.5 w-full rounded-lg border border-slate-200 bg-slate-50/70 py-1.5 pl-8.5 pr-3 text-xs text-slate-900 placeholder:text-slate-400 outline-none transition-all focus:border-slate-800 focus:bg-white"
+            />
+          </div>
+
+          <select
+            aria-label="Filter by health"
+            value={urgency}
+            onChange={(event) => setUrgency(event.target.value as 'all' | RenewalUrgency | 'unknown')}
+            className="h-8.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            {URGENCY_FILTERS.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by jurisdiction"
+            value={jurisdiction}
+            onChange={(event) => setJurisdiction(event.target.value)}
+            className="h-8.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All jurisdictions</option>
+            {jurisdictions.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by desk"
+            value={desk}
+            onChange={(event) => setDesk(event.target.value)}
+            className="h-8.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All desks</option>
+            {desks.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <select
-          aria-label="Filter by health"
-          value={urgency}
-          onChange={(event) => setUrgency(event.target.value as 'all' | RenewalUrgency | 'unknown')}
-          className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text)]"
-        >
-          {URGENCY_FILTERS.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          aria-label="Filter by jurisdiction"
-          value={jurisdiction}
-          onChange={(event) => setJurisdiction(event.target.value)}
-          className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text)]"
-        >
-          <option value="all">All jurisdictions</option>
-          {jurisdictions.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-
-        <select
-          aria-label="Filter by desk"
-          value={desk}
-          onChange={(event) => setDesk(event.target.value)}
-          className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text)]"
-        >
-          <option value="all">All desks</option>
-          {desks.map((item) => (
-            <option key={item} value={item}>
-              {item}
-            </option>
-          ))}
-        </select>
-
-        <Button variant="secondary" size="sm" onClick={refresh} disabled={isPending}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          <span className="hidden xl:inline text-[11px] font-medium text-slate-400">
+            {filtered.length} of {rows.length} entities
+          </span>
+          <Button variant="secondary" size="sm" onClick={refresh} disabled={isPending} className="h-8.5 rounded-lg">
+            <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
+        </div>
       </div>
 
       {filtered.length === 0 ? (
