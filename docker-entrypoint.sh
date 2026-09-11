@@ -15,18 +15,11 @@ else
   echo "WARNING: migrations did not apply — check DATABASE_URL and the logs above" >&2
 fi
 
-# First-run seed. Idempotent (upserts by natural key), so it is safe on every
-# boot, and it only runs when the operator has supplied admin credentials —
-# without them a fresh database would have no user to log in with.
-if [ -n "$SEED_ADMIN_PASSWORD" ]; then
-  echo "Seeding database..."
-  if node seed.mjs; then
-    echo "Seed complete"
-  else
-    echo "WARNING: seed did not complete — check the logs above" >&2
-  fi
+echo "Seeding database..."
+if node seed.mjs; then
+  echo "Seed complete"
 else
-  echo "SEED_ADMIN_PASSWORD not set — skipping seed"
+  echo "WARNING: seed did not complete — check the logs above" >&2
 fi
 
 echo "Starting application..."
