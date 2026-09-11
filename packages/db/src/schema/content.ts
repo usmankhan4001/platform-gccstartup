@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { pgTable } from "drizzle-orm/pg-core";
 import { timestampColumns } from "./_shared";
+import { users } from "./auth";
 
 export const contentStatusEnum = pgEnum("content_status", [
   "draft",
@@ -36,8 +37,12 @@ export const pages = pgTable(
     seo_keywords: text("seo_keywords"),
     aeo_answer: text("aeo_answer"),
     author: varchar("author", { length: 200 }),
-    created_by: varchar("created_by", { length: 36 }),
-    updated_by: varchar("updated_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updated_by: varchar("updated_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     ...timestampColumns(),
   },
   (table) => [
@@ -69,8 +74,12 @@ export const posts = pgTable(
     seo_keywords: text("seo_keywords"),
     aeo_answer: text("aeo_answer"),
     author: varchar("author", { length: 200 }),
-    created_by: varchar("created_by", { length: 36 }),
-    updated_by: varchar("updated_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updated_by: varchar("updated_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     ...timestampColumns(),
   },
   (table) => [
@@ -88,7 +97,9 @@ export const revisions = pgTable(
     entity_type: entityTypeEnum("entity_type").notNull(),
     entity_id: varchar("entity_id", { length: 36 }).notNull(),
     data: jsonb("data").$type<unknown>().notNull(),
-    author_id: varchar("author_id", { length: 36 }),
+    author_id: varchar("author_id", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     author_name: varchar("author_name", { length: 200 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },

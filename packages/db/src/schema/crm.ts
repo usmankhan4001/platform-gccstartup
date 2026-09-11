@@ -105,7 +105,9 @@ export const crm_notes = pgTable(
       onDelete: "set null",
     }),
     body: text("body").notNull(),
-    author_id: varchar("author_id", { length: 36 }),
+    author_id: varchar("author_id", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     author_name: varchar("author_name", { length: 200 }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -122,10 +124,14 @@ export const crm_tasks = pgTable(
     id: varchar("id", { length: 36 }).primaryKey(),
     title: varchar("title", { length: 200 }).notNull(),
     details: text("details"),
-    assignee_id: varchar("assignee_id", { length: 36 }),
+    assignee_id: varchar("assignee_id", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     due_at: timestamp("due_at", { withTimezone: true }),
     completed_at: timestamp("completed_at", { withTimezone: true }),
-    completed_by: varchar("completed_by", { length: 36 }),
+    completed_by: varchar("completed_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     priority: taskPriorityEnum("priority").default("normal").notNull(),
     contact_id: varchar("contact_id", { length: 36 }).references(() => contacts.id, {
       onDelete: "set null",
@@ -163,7 +169,9 @@ export const crm_activities = pgTable(
     notes: text("notes"),
     occurred_at: timestamp("occurred_at", { withTimezone: true }).notNull(),
     duration_minutes: integer("duration_minutes"),
-    logged_by: varchar("logged_by", { length: 36 }),
+    logged_by: varchar("logged_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

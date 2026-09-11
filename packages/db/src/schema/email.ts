@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { pgTable } from "drizzle-orm/pg-core";
 import { contacts } from "./contacts";
+import { users } from "./auth";
 
 export const emailCategoryEnum = pgEnum("email_category", [
   "marketing",
@@ -59,8 +60,12 @@ export const email_templates = pgTable(
     variables: jsonb("variables").$type<string[]>().default([]),
     category: emailCategoryEnum("category").default("marketing").notNull(),
     is_active: boolean("is_active").default(true).notNull(),
-    created_by: varchar("created_by", { length: 36 }),
-    updated_by: varchar("updated_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updated_by: varchar("updated_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -90,8 +95,12 @@ export const email_campaigns = pgTable(
     winner_criteria: varchar("winner_criteria", { length: 50 }),
     winner_variant: varchar("winner_variant", { length: 1 }),
     error: text("error"),
-    created_by: varchar("created_by", { length: 36 }),
-    updated_by: varchar("updated_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updated_by: varchar("updated_by", { length: 36 }).references(() => users.id, {
+      onDelete: "set null",
+    }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
