@@ -12,13 +12,15 @@ export default async function DealsPage() {
   const data = await loadPipelineBoardData()
 
   return (
-    <div className="space-y-5">
-      <header className="border-b border-[var(--border)] pb-4">
-        <h1 className="text-xl font-black tracking-tight text-[var(--text)]">Deals</h1>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          The same board as the CRM home - Kanban for stage movement, table for bulk edits.
-        </p>
-      </header>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Deals Pipeline</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Every formation deal across the 8-stage GCC pipeline, with forecast and win-rate KPIs.
+          </p>
+        </div>
+      </div>
 
       <DealsPipeline
         initialCards={data.cards}

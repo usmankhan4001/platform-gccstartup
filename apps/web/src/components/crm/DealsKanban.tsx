@@ -182,10 +182,9 @@ export function DealsKanban({
                       role="button"
                       tabIndex={0}
                       aria-label={`Open ${card.title}`}
-                      className={`cursor-pointer rounded-lg border border-[var(--border)] bg-white p-2.5 shadow-xs transition-all hover:border-[var(--border-hover)] hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] ${
+                      className={`cursor-pointer rounded-xl border border-slate-200/90 bg-white p-3 shadow-2xs transition-all hover:border-slate-300 hover:shadow-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-[#1B4FD8] ${
                         isDragging ? 'opacity-40' : ''
                       } ${isMoving ? 'animate-pulse' : ''}`}
-                      style={{ borderLeft: `3px solid ${meta.color}` }}
                     >
                       <div className="flex items-start gap-1.5">
                         <span
@@ -196,44 +195,44 @@ export function DealsKanban({
                           onPointerMove={onGripPointerMove}
                           onPointerUp={onGripPointerUp}
                           onClick={(event) => event.stopPropagation()}
-                          className="mt-0.5 cursor-grab touch-none text-[var(--text-tertiary)] active:cursor-grabbing"
+                          className="mt-0.5 cursor-grab touch-none text-slate-300 hover:text-slate-500 active:cursor-grabbing"
                         >
                           <GripVertical className="h-3.5 w-3.5" />
                         </span>
 
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <p className="truncate text-xs font-bold leading-tight text-[var(--text)]">{card.title}</p>
-                            <Badge size="sm" variant={scoreTone(card.scoreTier)}>
+                          <div className="flex items-start justify-between gap-1.5">
+                            <p className="truncate text-xs font-bold leading-tight text-slate-900">{card.title}</p>
+                            <Badge size="sm" variant={scoreTone(card.scoreTier)} className="font-mono text-[9px] px-1 py-0 shrink-0">
                               {card.score}
                             </Badge>
                           </div>
-                          {card.company && card.contactName !== card.company && (
-                            <p className="truncate text-[10px] text-[var(--text-tertiary)]">{card.contactName}</p>
+                          {card.contactName && card.contactName !== card.title && (
+                            <p className="truncate text-[10px] text-slate-400 mt-0.5">{card.contactName}</p>
                           )}
                         </div>
                       </div>
 
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="font-mono text-xs font-black text-[var(--text)]">
+                      <div className="mt-2.5 flex items-center justify-between gap-2">
+                        <span className="font-mono text-xs font-bold text-slate-900 tabular-nums">
                           {formatCurrency(card.value, card.currency)}
                         </span>
                         {card.jurisdiction && (
-                          <span className="flex min-w-0 items-center gap-1 truncate text-[10px] text-[var(--text-secondary)]">
-                            <MapPin className="h-3 w-3 shrink-0" />
-                            <span className="truncate">{card.jurisdiction}</span>
+                          <span className="flex min-w-0 items-center gap-1 truncate text-[10px] font-medium text-slate-500 bg-slate-50 border border-slate-200/60 rounded px-1.5 py-0.5">
+                            <MapPin className="h-2.5 w-2.5 shrink-0 text-slate-400" />
+                            <span className="truncate max-w-[110px]">{card.jurisdiction}</span>
                           </span>
                         )}
                       </div>
 
-                      <div className="mt-2 flex items-center justify-between gap-2 border-t border-[var(--border)] pt-2">
+                      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100 pt-2">
                         <div className="flex min-w-0 items-center gap-1.5">
-                          <Avatar className="h-5 w-5">
-                            <AvatarFallback className="text-[9px]">
+                          <Avatar className="h-4.5 w-4.5">
+                            <AvatarFallback className="text-[8px] bg-slate-100 text-slate-700 font-bold">
                               {initialsOf(card.ownerName || 'Unassigned')}
                             </AvatarFallback>
                           </Avatar>
-                          <span className="truncate text-[10px] text-[var(--text-secondary)]">
+                          <span className="truncate text-[10px] font-medium text-slate-500">
                             {card.ownerName || 'Unassigned'}
                           </span>
                         </div>
@@ -247,20 +246,20 @@ export function DealsKanban({
                             {task.label}
                           </span>
                         ) : (
-                          <span className="shrink-0 text-[10px] text-[var(--text-tertiary)]">No open task</span>
+                          <span className="shrink-0 text-[10px] text-slate-400">No task</span>
                         )}
                       </div>
 
                       {(card.kycStatus || card.tradeLicenseNumber) && (
-                        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-[var(--text-tertiary)]">
+                        <div className="mt-1.5 flex items-center gap-2 text-[10px] text-slate-400">
                           {card.kycStatus && (
                             <span className="flex items-center gap-1">
-                              <ShieldCheck className="h-3 w-3" />
-                              {String(card.kycStatus).replace(/_/g, ' ')}
+                              <ShieldCheck className="h-3 w-3 text-emerald-600" />
+                              <span className="capitalize">{String(card.kycStatus).replace(/_/g, ' ')}</span>
                             </span>
                           )}
                           {card.tradeLicenseNumber && (
-                            <span className="truncate font-mono">{card.tradeLicenseNumber}</span>
+                            <span className="truncate font-mono text-[9px] bg-slate-50 px-1 rounded border border-slate-200/60">{card.tradeLicenseNumber}</span>
                           )}
                         </div>
                       )}

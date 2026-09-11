@@ -80,7 +80,20 @@
   --color-chart-5: #8b5cf6;
   --color-chart-6: var(--sky-dk);
 
-  /* ── Smallest sanctioned UI text — badges, metadata, timestamps ─────────── */
+  /* ── Brand Colors ───────────────────────────────────────────────────────── */
+  --color-navy: #0A142F;
+  --color-navy-dk: #060D20;
+  --color-orange: #F26522;
+  --color-orange-dk: #C9511A;
+  --color-orange-lt: #FEF1E9;
+  --color-blue: #1B4FD8;
+  --color-blue-dk: #1039AC;
+  --color-blue-lt: #EFF6FF;
+
+  /* ── Typography & Sizes ─────────────────────────────────────────────────── */
+  --font-sans: var(--font-satoshi), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: var(--font-clash), var(--font-satoshi), -apple-system, sans-serif;
+  --font-mono: var(--font-mono-fallback), "JetBrains Mono", ui-monospace, monospace;
   --text-2xs: 0.6875rem;
   --text-2xs--line-height: 1rem;
 }

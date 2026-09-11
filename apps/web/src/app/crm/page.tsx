@@ -13,13 +13,15 @@ export default async function CrmPage() {
   const data = await loadPipelineBoardData()
 
   return (
-    <div className="space-y-5">
-      <header className="border-b border-[var(--border)] pb-4">
-        <h1 className="text-xl font-black tracking-tight text-[var(--text)]">Deals pipeline</h1>
-        <p className="mt-1 text-xs text-[var(--text-secondary)]">
-          Drag a card between stages to persist the change. Switch to the table view for bulk actions and sorting.
-        </p>
-      </header>
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-slate-900">Deals Pipeline</h1>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Real-time formation deals, stage progression, weighted revenue forecast, and lead scoring.
+          </p>
+        </div>
+      </div>
 
       <DealsPipeline
         initialCards={data.cards}

@@ -178,14 +178,14 @@
 /* Form fields */
 .field { display: block; margin-bottom: var(--space-4); }
 .field label { display: block; margin-bottom: var(--space-2); font-weight: 600; font-size: 14px; color: var(--text); }
-.field input, .field select, .field textarea, select {
-width: 100%; padding: 15px 18px; border: 1px solid var(--border);
+.field input, .field select, .field textarea {
+  width: 100%; padding: 15px 18px; border: 1px solid var(--border);
   font-family: inherit; font-size: 16px; color: var(--text); background: var(--surface);
   transition: border-color .15s ease, box-shadow .15s ease;
 }
-.field input, .field select, select { border-radius: var(--radius-pill); padding-left: var(--space-6); padding-right: var(--space-6); }
+.field input, .field select { border-radius: var(--radius-pill); padding-left: var(--space-6); padding-right: var(--space-6); }
 .field textarea { border-radius: var(--radius); }
-.field select, select {
+.field select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -195,12 +195,12 @@ width: 100%; padding: 15px 18px; border: 1px solid var(--border);
   background-size: 16px 16px;
   padding-right: 40px;
 }
-.field input:hover, .field select:hover, select:hover, .field textarea:hover { border-color: var(--border-hover); }
-.field input:focus, .field select:focus, select:focus, .field textarea:focus {
+.field input:hover, .field select:hover, .field textarea:hover { border-color: var(--border-hover); }
+.field input:focus, .field select:focus, .field textarea:focus {
   outline: none; border-color: var(--orange); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
 }
-.field input:disabled, .field select:disabled, select:disabled, .field textarea:disabled { background: var(--surface-alt); color: var(--text-tertiary); }
-.field input.invalid, .field select.invalid, select.invalid, .field textarea.invalid { border-color: var(--error); }
+.field input:disabled, .field select:disabled, .field textarea:disabled { background: var(--surface-alt); color: var(--text-tertiary); }
+.field input.invalid, .field select.invalid, .field textarea.invalid { border-color: var(--error); }
 
 /* Process stepper */
 .process-track { display: flex; gap: var(--space-6); }
