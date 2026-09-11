@@ -36,14 +36,14 @@ export function PlatformSidebar({
     <aside
       aria-label={`${activeHub.label} navigation`}
       className={cn(
-        'relative flex flex-col border-r border-[var(--border)] bg-white transition-all duration-200 select-none z-30 shrink-0 h-full',
-        isCollapsed ? 'w-16' : 'w-60'
+        'relative flex flex-col border-r border-[var(--border)] bg-white transition-all duration-200 select-none z-30 shrink-0 h-full overflow-hidden',
+        isCollapsed ? 'w-16' : 'w-64'
       )}
     >
       {/* Current Hub Banner Header */}
       <div
         className={cn(
-          'flex items-center border-b border-[var(--border)] transition-all bg-slate-50/40',
+          'flex items-center border-b border-[var(--border)] transition-all bg-slate-50/60',
           isCollapsed ? 'h-14 justify-center px-2' : 'h-14 justify-between px-3.5'
         )}
       >
@@ -59,7 +59,7 @@ export function PlatformSidebar({
           </div>
 
           {!isCollapsed && (
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <span className="block text-xs font-black text-[#0A142F] tracking-tight truncate leading-tight">
                 {activeHub.label}
               </span>
@@ -71,18 +71,18 @@ export function PlatformSidebar({
         </div>
 
         {!isCollapsed && activeHub.badgeText && (
-          <span className="rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider text-emerald-700">
+          <span className="shrink-0 rounded-full bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider text-emerald-700">
             {activeHub.badgeText}
           </span>
         )}
       </div>
 
       {/* Navigation Sections */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 space-y-4">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-2 space-y-3.5">
         {activeHub.sections.map((section, sIdx) => (
           <div key={sIdx} className="space-y-0.5">
             {!isCollapsed && (
-              <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
+              <div className="px-2.5 py-1 text-[9px] font-bold uppercase tracking-wider text-[var(--text-tertiary)]">
                 {section.title}
               </div>
             )}
@@ -117,12 +117,12 @@ export function PlatformSidebar({
                   />
 
                   {!isCollapsed && (
-                    <>
-                      <span className="truncate flex-1 leading-tight">{item.label}</span>
+                    <div className="flex items-center justify-between gap-1.5 min-w-0 flex-1">
+                      <span className="truncate leading-tight text-xs">{item.label}</span>
                       {item.badge && (
                         <span
                           className={cn(
-                            'rounded px-1.5 py-0.2 text-[8px] font-bold uppercase tracking-wider shrink-0 transition-colors',
+                            'rounded px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wider shrink-0 transition-colors',
                             isActive
                               ? 'bg-[var(--orange)] text-white'
                               : 'bg-slate-100 text-[var(--text-tertiary)] group-hover:bg-slate-200 group-hover:text-[var(--text-secondary)]'
@@ -131,7 +131,7 @@ export function PlatformSidebar({
                           {item.badge}
                         </span>
                       )}
-                    </>
+                    </div>
                   )}
 
                   {/* Active Indicator bar on collapse */}

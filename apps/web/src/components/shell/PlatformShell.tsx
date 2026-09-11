@@ -98,7 +98,7 @@ export function PlatformShell({ children }: { children: React.ReactNode }) {
           {/* Body: Sidebar + Main Content */}
           <div className="flex flex-1 overflow-hidden min-h-0">
             {/* Desktop Sidebar (Collapsible) */}
-            <div className="hidden lg:flex shrink-0">
+            <div className={cn('hidden lg:flex shrink-0 transition-all duration-200', isCollapsed ? 'w-16' : 'w-64')}>
               <PlatformSidebar
                 isCollapsed={isCollapsed}
                 onToggleCollapse={handleToggleCollapse}

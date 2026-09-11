@@ -128,26 +128,26 @@ export function DealsKanban({
                 const id = drag?.id ?? event.dataTransfer.getData('text/plain') ?? ''
                 commitMove(id, stage.id)
               }}
-              className={`flex w-[300px] shrink-0 flex-col rounded-xl border bg-[var(--surface-alt)] transition-colors ${
+              className={`flex w-[290px] shrink-0 flex-col rounded-xl border bg-slate-50/70 transition-colors shadow-2xs ${
                 isOver ? 'border-[var(--navy)] ring-2 ring-[rgba(10,20,47,0.12)]' : 'border-[var(--border)]'
               }`}
             >
-              <header className="shrink-0 rounded-t-xl border-b border-[var(--border)] bg-white px-3 py-2.5">
+              <header className="shrink-0 rounded-t-xl border-b border-[var(--border)] bg-white px-3.5 py-3">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: stage.color }} />
-                    <h3 className="truncate text-[11px] font-bold uppercase tracking-wide text-[var(--text)]">
+                    <h3 className="truncate text-xs font-bold uppercase tracking-wide text-[var(--text)]">
                       {stage.label}
                     </h3>
-                    <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[var(--surface-hover)] px-1.5 text-[10px] font-black text-[var(--text-secondary)]">
+                    <span className="flex h-4.5 min-w-[20px] items-center justify-center rounded-full bg-slate-100 px-1.5 text-[10px] font-black text-slate-700">
                       {stageCards.length}
                     </span>
                   </div>
-                  <span className="shrink-0 font-mono text-[11px] font-bold text-[var(--green-dk)]">
+                  <span className="shrink-0 font-mono text-[11px] font-bold text-emerald-700">
                     {formatCurrency(totalValue, 'AED')}
                   </span>
                 </div>
-                <p className="mt-1 truncate pl-[18px] text-[10px] text-[var(--text-tertiary)]">{stage.cue}</p>
+                <p className="mt-1 truncate pl-4.5 text-[10px] font-medium text-[var(--text-tertiary)]">{stage.cue}</p>
               </header>
 
               <div className="flex-1 space-y-2 overflow-y-auto p-2" style={{ maxHeight: 'calc(100vh - 320px)' }}>

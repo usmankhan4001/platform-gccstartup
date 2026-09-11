@@ -132,78 +132,85 @@ export function DealsPipeline({
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-[220px] flex-1">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--text-tertiary)]" />
-          <input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search company, contact, email, jurisdiction..."
-            aria-label="Search deals"
-            className="w-full rounded-full border border-[var(--border)] bg-white py-2 pl-9 pr-3 text-xs text-[var(--text)] outline-none focus:border-[var(--accent)]"
-          />
+      <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-xl border border-[var(--border)] bg-white p-2 sm:p-2.5 shadow-2xs">
+        <div className="flex flex-1 flex-wrap items-center gap-2 min-w-[280px]">
+          <div className="relative min-w-[200px] flex-1 max-w-md">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search company, contact, email, jurisdiction..."
+              aria-label="Search deals"
+              className="h-8.5 w-full rounded-lg border border-slate-200 bg-slate-50/70 py-1.5 pl-8.5 pr-3 text-xs text-[var(--text)] placeholder:text-slate-400 outline-none transition-all focus:border-[var(--navy)] focus:bg-white"
+            />
+          </div>
+
+          <select
+            aria-label="Filter by stage"
+            value={stageFilter}
+            onChange={(event) => setStageFilter(event.target.value as 'all' | LeadStatus)}
+            className="h-8.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All stages</option>
+            {PIPELINE_STAGES.map((stage) => (
+              <option key={stage.id} value={stage.id}>
+                {stage.label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            aria-label="Filter by owner"
+            value={ownerFilter}
+            onChange={(event) => setOwnerFilter(event.target.value)}
+            className="h-8.5 rounded-lg border border-slate-200 bg-slate-50/70 px-2.5 text-xs font-semibold text-slate-700 outline-none hover:bg-slate-100 transition-colors cursor-pointer"
+          >
+            <option value="all">All owners</option>
+            <option value="unassigned">Unassigned</option>
+            {owners.map((owner) => (
+              <option key={owner.id} value={owner.id}>
+                {owner.name}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <select
-          aria-label="Filter by stage"
-          value={stageFilter}
-          onChange={(event) => setStageFilter(event.target.value as 'all' | LeadStatus)}
-          className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text)]"
-        >
-          <option value="all">All stages</option>
-          {PIPELINE_STAGES.map((stage) => (
-            <option key={stage.id} value={stage.id}>
-              {stage.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          <span className="hidden xl:inline text-[11px] font-medium text-[var(--text-tertiary)]">
+            {filtered.length} of {cards.length} deals
+          </span>
 
-        <select
-          aria-label="Filter by owner"
-          value={ownerFilter}
-          onChange={(event) => setOwnerFilter(event.target.value)}
-          className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-xs font-semibold text-[var(--text)]"
-        >
-          <option value="all">All owners</option>
-          <option value="unassigned">Unassigned</option>
-          {owners.map((owner) => (
-            <option key={owner.id} value={owner.id}>
-              {owner.name}
-            </option>
-          ))}
-        </select>
+          <div className="flex items-center rounded-lg bg-slate-100 p-0.5 border border-slate-200/60 shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setView('kanban')}
+              aria-pressed={view === 'kanban'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition-all ${
+                view === 'kanban' ? 'bg-[#0A142F] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Columns3 className="h-3.5 w-3.5" />
+              <span>Kanban</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setView('table')}
+              aria-pressed={view === 'table'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-bold transition-all ${
+                view === 'table' ? 'bg-[#0A142F] text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Table2 className="h-3.5 w-3.5" />
+              <span>Table</span>
+            </button>
+          </div>
 
-        <div className="flex items-center gap-1 rounded-full border border-[var(--border)] bg-white p-1">
-          <button
-            type="button"
-            onClick={() => setView('kanban')}
-            aria-pressed={view === 'kanban'}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
-              view === 'kanban' ? 'bg-[var(--navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-            }`}
-          >
-            <Columns3 className="h-3.5 w-3.5" /> Kanban
-          </button>
-          <button
-            type="button"
-            onClick={() => setView('table')}
-            aria-pressed={view === 'table'}
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold transition-colors ${
-              view === 'table' ? 'bg-[var(--navy)] text-white' : 'text-[var(--text-secondary)] hover:bg-[var(--surface-hover)]'
-            }`}
-          >
-            <Table2 className="h-3.5 w-3.5" /> Table
-          </button>
+          <Button variant="secondary" size="sm" onClick={refresh} disabled={isPending} className="h-8 rounded-lg">
+            <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
+          </Button>
         </div>
-
-        <Button variant="secondary" size="sm" onClick={refresh} disabled={isPending}>
-          <RefreshCw className={`h-3.5 w-3.5 ${isPending ? 'animate-spin' : ''}`} /> Refresh
-        </Button>
       </div>
-
-      <p className="text-[11px] text-[var(--text-tertiary)]">
-        Showing {filtered.length} of {cards.length} deals
-      </p>
 
       {view === 'kanban' ? (
         <DealsKanban cards={filtered} movingId={movingId} onOpen={openLead} onMove={moveCard} />
