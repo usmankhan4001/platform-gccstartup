@@ -93,7 +93,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   }
 
   return (
-    <main className="site-main">
+    <div className="support-page-wrap">
       <section className="support-hero">
         <div className="wrap">
           <p className="eyebrow" style={{ color: 'var(--orange)' }}>Support portal</p>
@@ -147,6 +147,6 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
           </>
         )}
       </div>
-    </main>
+    </div>
   )
 }

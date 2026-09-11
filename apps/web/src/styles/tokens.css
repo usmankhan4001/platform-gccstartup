@@ -78,7 +78,7 @@
      can be swapped for --font-heading in one edit if the Magnita licence lapses. */
   --font-display-alt: var(--font-magnita), var(--font-clash), serif;
 
-  /* Type scale — Babun runs noticeably larger than the previous system: 20px body
+  /* Type scale — Babun runs noticeably larger than the previous system: 18px body
      instead of 16px, and display headings up to 85px. The oversized end is what
      gives the theme its editorial feel, so it is preserved rather than tamed, but
      every size clamps down to a sane mobile floor. */
@@ -89,12 +89,6 @@
 
   /* Border radii — Babun is soft everywhere: pill controls, deeply rounded cards. */
   --radius-sm: 12px;
-
-  /* Type Scale */
-  --text-body: 17px;
-  --text-lg: clamp(18px, 1.5vw, 21px);
-  --text-xl: clamp(20px, 2vw, 25px);
-  --leading-body: 1.65;
 
   /* Spacing Scale (4px base) */
   --space-1: 4px;

@@ -71,6 +71,17 @@ export function LeadCaptureModal({
   const [submitted, setSubmitted] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  React.useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose()
+      }
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
   if (!isOpen) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -129,11 +140,21 @@ export function LeadCaptureModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A142F]/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-[#E2E8F0] relative">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#0A142F]/70 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Download ${toolTitle} Summary`}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-[#E2E8F0] relative"
+      >
         <button
           type="button"
           onClick={onClose}
+          aria-label="Close modal"
           className="absolute top-5 right-5 p-1.5 rounded-full text-[#64748B] hover:bg-[#F1F5F9] transition-colors"
         >
           <X className="h-5 w-5" />

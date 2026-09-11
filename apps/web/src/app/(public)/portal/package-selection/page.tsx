@@ -8,8 +8,8 @@ export const metadata: Metadata = {
 
 export default function PackageSelectionPage() {
   return (
-    <main style={{ minHeight: '85vh', background: 'var(--surface-alt, #F8FAFC)', paddingBottom: 60 }}>
+    <div style={{ minHeight: '85vh', background: 'var(--surface-alt, #F8FAFC)', paddingBottom: 60 }}>
       <PackageSelectorClient />
-    </main>
+    </div>
   )
 }

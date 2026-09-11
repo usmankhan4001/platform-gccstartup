@@ -1,3 +1,2 @@
-export function requireRole(role: string) { return async (request: any) => { return { userId: "stub", role: "admin" } } }
-
-export const requireAuth = requireRole
+export { hasPermission, canAccess, getRoleLevel, type Role } from '@gccstartup/shared'
+export { requireRole, requireAuth, authGuard, AuthError } from './session'

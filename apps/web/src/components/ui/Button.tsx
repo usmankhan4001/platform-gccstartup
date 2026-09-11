@@ -113,18 +113,32 @@ export function Button({
   )
 }
 
+import Link from 'next/link'
+
 export function ButtonLink({
   variant,
   size,
   shimmer,
   className,
   children,
+  href = '#',
   ...rest
 }: CommonProps & AnchorHTMLAttributes<HTMLAnchorElement>) {
+  const isExternal = typeof href === 'string' && (href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:'))
+  const combinedClassName = classes({ variant, size, shimmer, className })
+
+  if (isExternal) {
+    return (
+      <a href={href} className={combinedClassName} {...rest}>
+        {children}
+      </a>
+    )
+  }
+
   return (
-    <a className={classes({ variant, size, shimmer, className })} {...rest}>
+    <Link href={href} className={combinedClassName} {...(rest as any)}>
       {children}
-    </a>
+    </Link>
   )
 }
 

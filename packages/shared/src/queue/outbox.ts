@@ -27,14 +27,15 @@ export interface Job {
 export interface OutboxRow {
   id: string
   job_type: string
-  payload: string // JSON string
+  payload: string | Record<string, unknown>
   status: string
   idempotency_key: string | null
   attempts: number
   max_attempts: number
   last_error: string | null
-  claimed_at: string | null
-  deferred_until: string | null
+  started_at: string | null
+  next_run_at: string | null
+  completed_at: string | null
   created_at: string
   updated_at: string
 }
@@ -54,7 +55,7 @@ interface EnqueueOptions {
 }
 
 /**
- * Enqueue a job into the outbox table.
+ * Enqueue a job into the outbox_jobs table.
  * @param db - Database client
  * @param jobType - Type of job
  * @param payload - Arbitrary JSON-serialisable payload
@@ -71,15 +72,15 @@ export async function enqueueJob(
   const now = new Date().toISOString()
   const idempotencyKey = options?.idempotencyKey ?? null
   const maxAttempts = options?.maxAttempts ?? 5
-  const deferredUntil = options?.deferSeconds
+  const nextRunAt = options?.deferSeconds
     ? new Date(Date.now() + options.deferSeconds * 1000).toISOString()
-    : null
-  const initialStatus: JobStatus = deferredUntil ? 'deferred' : 'pending'
+    : now
+  const initialStatus: JobStatus = 'pending'
 
   await db.query(
-    `INSERT INTO outbox (id, job_type, payload, status, idempotency_key, attempts, max_attempts, last_error, claimed_at, deferred_until, created_at, updated_at)
+    `INSERT INTO outbox_jobs (id, job_type, payload, status, idempotency_key, attempts, max_attempts, last_error, started_at, next_run_at, created_at, updated_at)
      VALUES ($1, $2, $3, $4, $5, 0, $6, null, null, $7, $8, $9)`,
-    [id, jobType, JSON.stringify(payload), initialStatus, idempotencyKey, maxAttempts, deferredUntil, now, now],
+    [id, jobType, JSON.stringify(payload), initialStatus, idempotencyKey, maxAttempts, nextRunAt, now, now],
   )
 
   return id
@@ -98,15 +99,15 @@ export async function claimJob(
   const now = new Date().toISOString()
 
   const result = await db.query<OutboxRow>(
-    `UPDATE outbox
-     SET status = 'claimed', claimed_at = $1, updated_at = $2
+    `UPDATE outbox_jobs
+     SET status = 'processing', started_at = $1, updated_at = $2
      WHERE id = (
-       SELECT id FROM outbox
+       SELECT id FROM outbox_jobs
        WHERE job_type = $3
-         AND status IN ('pending', 'deferred')
-         AND (deferred_until IS NULL OR deferred_until <= $2)
+         AND status = 'pending'
+         AND (next_run_at IS NULL OR next_run_at <= $2)
          AND attempts < max_attempts
-       ORDER BY created_at ASC
+       ORDER BY next_run_at ASC
        LIMIT 1
        FOR UPDATE SKIP LOCKED
      )
@@ -125,7 +126,7 @@ export async function claimJob(
 export async function completeJob(db: JobDB, jobId: string): Promise<void> {
   const now = new Date().toISOString()
   await db.query(
-    `UPDATE outbox SET status = 'completed', updated_at = $1 WHERE id = $2`,
+    `UPDATE outbox_jobs SET status = 'completed', completed_at = $1, updated_at = $1 WHERE id = $2`,
     [now, jobId],
   )
 }
@@ -139,7 +140,7 @@ export async function completeJob(db: JobDB, jobId: string): Promise<void> {
 export async function failJob(db: JobDB, jobId: string, error: string): Promise<void> {
   const now = new Date().toISOString()
   await db.query(
-    `UPDATE outbox
+    `UPDATE outbox_jobs
      SET status = 'failed', last_error = $1, attempts = attempts + 1, updated_at = $2
      WHERE id = $3`,
     [error, now, jobId],
@@ -154,12 +155,12 @@ export async function failJob(db: JobDB, jobId: string, error: string): Promise<
  */
 export async function deferJob(db: JobDB, jobId: string, seconds: number): Promise<void> {
   const now = new Date()
-  const deferredUntil = new Date(now.getTime() + seconds * 1000).toISOString()
+  const nextRunAt = new Date(now.getTime() + seconds * 1000).toISOString()
   await db.query(
-    `UPDATE outbox
-     SET status = 'deferred', deferred_until = $1, updated_at = $2
+    `UPDATE outbox_jobs
+     SET status = 'pending', next_run_at = $1, updated_at = $2
      WHERE id = $3`,
-    [deferredUntil, now.toISOString(), jobId],
+    [nextRunAt, now.toISOString(), jobId],
   )
 }
 
@@ -174,9 +175,9 @@ export async function reapStaleJobs(db: JobDB, staleMinutes: number): Promise<nu
   const now = new Date().toISOString()
 
   const result = await db.query(
-    `UPDATE outbox
-     SET status = 'pending', claimed_at = null, updated_at = $1
-     WHERE status = 'claimed' AND claimed_at < $2`,
+    `UPDATE outbox_jobs
+     SET status = 'pending', started_at = null, updated_at = $1
+     WHERE status = 'processing' AND started_at < $2`,
     [now, cutoff],
   )
 

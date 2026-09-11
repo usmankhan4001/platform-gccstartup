@@ -87,7 +87,19 @@ export function WhatsAppWidget({ phoneDigits }: { phoneDigits: string }) {
     <>
       <div className="wa-bubble">
         {showTooltip && !open && (
-          <div className="wa-tooltip" onClick={toggle} role="button" tabIndex={0}>
+          <div
+            className="wa-tooltip"
+            onClick={toggle}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                toggle()
+              }
+            }}
+            role="button"
+            tabIndex={0}
+            aria-label="Chat with a GCC expert"
+          >
             👋 Chat with a GCC expert
           </div>
         )}

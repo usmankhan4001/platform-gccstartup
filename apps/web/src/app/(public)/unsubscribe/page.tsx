@@ -75,7 +75,7 @@ function UnsubscribeContent() {
   }
 
   return (
-    <main className="min-h-[70vh] flex items-center justify-center py-20 px-4">
+    <div className="min-h-[70vh] flex items-center justify-center py-20 px-4">
       <div className="max-w-md w-full mx-auto bg-white rounded-2xl border border-[var(--border)] p-8 shadow-sm text-center">
         <div className="w-14 h-14 rounded-full bg-[var(--surface-alt)] flex items-center justify-center mx-auto mb-6 text-[var(--brand-orange)]">
           {status === 'loading' ? (
@@ -119,7 +119,7 @@ function UnsubscribeContent() {
             </p>
             <Link
               href="/"
-              className="inline-flex items-center justify-center px-6 py-2.5 rounded-full bg-[var(--brand-navy)] text-white text-sm font-semibold hover:bg-opacity-90 transition-colors"
+              className="inline-flex items-center justify-center w-full py-3 px-6 rounded-xl bg-[var(--surface-alt)] hover:bg-[var(--border)] text-[var(--text-primary)] font-semibold text-sm transition-colors"
             >
               Return to Homepage
             </Link>
@@ -134,23 +134,19 @@ function UnsubscribeContent() {
             <p className="text-[var(--text-secondary)] text-sm mb-6 leading-relaxed">
               {errorMsg || 'The unsubscribe link provided is invalid or expired. You can enter your email below to opt out.'}
             </p>
-            <form onSubmit={handleManualSubmit} className="space-y-4">
-              <input
-                type="email"
-                required
-                value={manualEmail}
-                onChange={(e) => setManualEmail(e.target.value)}
-                placeholder="name@example.com"
-                className="w-full px-4 py-2.5 rounded-xl border border-[var(--border)] text-sm focus:outline-none focus:border-[var(--brand-orange)]"
-              />
-              <button
-                type="submit"
-                disabled={submitting}
-                className="w-full py-2.5 rounded-full bg-[var(--brand-orange)] text-white text-sm font-semibold hover:bg-opacity-90 transition-colors disabled:opacity-50"
-              >
-                {submitting ? 'Submitting...' : 'Unsubscribe Address'}
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={() => setStatus('manual_entry')}
+              className="w-full py-2.5 rounded-full bg-[var(--brand-orange)] text-white text-sm font-semibold hover:bg-opacity-90 transition-colors cursor-pointer mb-3"
+            >
+              Enter Email Manually
+            </button>
+            <Link
+              href="/"
+              className="inline-block text-xs text-[var(--text-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+            >
+              Return to Homepage
+            </Link>
           </>
         )}
 
@@ -183,19 +179,19 @@ function UnsubscribeContent() {
           </>
         )}
       </div>
-    </main>
+    </div>
   )
 }
 
 export default function UnsubscribePage() {
   return (
     <Suspense fallback={
-      <main className="min-h-[70vh] flex items-center justify-center py-20 px-4">
+      <div className="min-h-[70vh] flex items-center justify-center py-20 px-4">
         <div className="max-w-md w-full mx-auto bg-white rounded-2xl border border-[var(--border)] p-8 shadow-sm text-center">
           <Loader2 size={32} className="animate-spin text-[var(--brand-orange)] mx-auto mb-4" />
           <h1 className="text-xl font-bold text-[var(--text-primary)]">Loading...</h1>
         </div>
-      </main>
+      </div>
     }>
       <UnsubscribeContent />
     </Suspense>

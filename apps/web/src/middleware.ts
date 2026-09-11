@@ -18,15 +18,27 @@ function isProtected(pathname: string): boolean {
 // and bounced every protected page straight back to /login.
 const SESSION_COOKIE = process.env.SESSION_COOKIE_NAME || 'gcc_session'
 
+function setSecurityHeaders(response: NextResponse): NextResponse {
+  response.headers.set('X-Frame-Options', 'SAMEORIGIN')
+  response.headers.set('X-Content-Type-Options', 'nosniff')
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
+  return response
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // API routes authenticate themselves (JWT / API key / HMAC). /api/lead/submit
   // and /api/health are unauthenticated by design.
-  if (pathname.startsWith('/api/')) return NextResponse.next()
+  if (pathname.startsWith('/api/')) {
+    return setSecurityHeaders(NextResponse.next())
+  }
 
   // Everything outside the three internal workspaces is the public site.
-  if (!isProtected(pathname)) return NextResponse.next()
+  if (!isProtected(pathname)) {
+    return setSecurityHeaders(NextResponse.next())
+  }
 
   // Protected CRM/CMS/Admin routes — check session cookie
   const session = request.cookies.get(SESSION_COOKIE)?.value
@@ -34,10 +46,10 @@ export function middleware(request: NextRequest) {
   if (!session) {
     const loginUrl = new URL('/login', request.url)
     loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
+    return setSecurityHeaders(NextResponse.redirect(loginUrl))
   }
 
-  return NextResponse.next()
+  return setSecurityHeaders(NextResponse.next())
 }
 
 export const config = {

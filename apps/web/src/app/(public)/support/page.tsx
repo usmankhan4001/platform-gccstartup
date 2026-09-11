@@ -131,15 +131,15 @@ export default function SupportPage() {
 
   if (view === 'loading') {
     return (
-      <main className="site-main">
+      <div className="support-page-wrap">
         <section className="support-hero"><div className="wrap"><h1>Customer Support</h1></div></section>
         <div className="support-stack"><div className="support-panel" style={{ textAlign: 'center' }}>Loading…</div></div>
-      </main>
+      </div>
     )
   }
 
   return (
-    <main className="site-main">
+    <div className="support-page-wrap">
       <section className="support-hero">
         <div className="wrap">
           <p className="eyebrow" style={{ color: 'var(--orange)' }}>Support portal</p>
@@ -227,6 +227,6 @@ export default function SupportPage() {
           </section>
         )}
       </div>
-    </main>
+    </div>
   )
 }

@@ -84,7 +84,9 @@ export async function requireAuth(request: NextRequest): Promise<AuthResult> {
 const ROLE_LEVEL: Record<string, number> = {
   super_admin: 3,
   admin: 2,
+  manager: 2,
   staff: 1,
+  agent: 1,
   viewer: 0,
 }
 
@@ -96,9 +98,12 @@ export async function requireRole(
   const result = await requireAuth(request)
   if ('error' in result) return result
 
-  const level = ROLE_LEVEL[result.user.role] ?? 0
-  const allowed = Math.max(...roles.map((r) => ROLE_LEVEL[r] ?? 0))
-  if (level < allowed) {
+  if (result.user.role === 'super_admin') return result
+  if (roles.includes(result.user.role)) return result
+
+  const userLevel = ROLE_LEVEL[result.user.role] ?? 0
+  const minRequiredLevel = Math.min(...roles.map((r) => ROLE_LEVEL[r] ?? 0))
+  if (userLevel < minRequiredLevel) {
     return { error: 'Insufficient permissions', status: 403 }
   }
   return result

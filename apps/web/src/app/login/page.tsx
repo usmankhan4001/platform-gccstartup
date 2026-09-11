@@ -29,7 +29,11 @@ function LoginForm() {
         setError(data.error || 'Invalid credentials. Please check your email and password.')
         return
       }
-      const redirectUrl = searchParams.get('redirect') || '/crm'
+      const rawRedirect = searchParams.get('redirect') || '/crm'
+      // Ensure redirect is an internal relative path and does not start with protocol-relative '//'
+      const redirectUrl = (rawRedirect.startsWith('/') && !rawRedirect.startsWith('//') && !rawRedirect.includes('\\'))
+        ? rawRedirect
+        : '/crm'
       router.push(redirectUrl)
       router.refresh()
     } catch {

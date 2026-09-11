@@ -10,8 +10,8 @@ export default async function TrackingPage({ params }: { params: Promise<{ token
   const { token } = await params
 
   return (
-    <main style={{ minHeight: '85vh', background: 'var(--surface-alt, #F8FAFC)', paddingBottom: 60 }}>
+    <div style={{ minHeight: '85vh', background: 'var(--surface-alt, #F8FAFC)', paddingBottom: 60 }}>
       <TrackingClient token={token} />
-    </main>
+    </div>
   )
 }

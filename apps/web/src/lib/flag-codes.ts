@@ -1,5 +1,7 @@
 export const COUNTRY_FLAG_CODE: Record<string, string> = {
   uae: 'ae',
+  saudi: 'sa',
+  'saudi-arabia': 'sa',
   bahrain: 'bh',
   oman: 'om',
   qatar: 'qa',

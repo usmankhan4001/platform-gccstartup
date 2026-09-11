@@ -33,6 +33,26 @@ const ROLES = [
   { id: 'role_super_admin', name: 'super_admin', description: 'Unrestricted access' },
 ]
 
+const PERMISSIONS_LIST = [
+  { id: 'perm_users_all', name: 'users:*', description: 'Full user administration' },
+  { id: 'perm_contacts_all', name: 'contacts:*', description: 'Full contact management' },
+  { id: 'perm_contacts_read', name: 'contacts:read', description: 'Read-only contact access' },
+  { id: 'perm_deals_all', name: 'deals:*', description: 'Full deal management' },
+  { id: 'perm_deals_read', name: 'deals:read', description: 'Read-only deal access' },
+  { id: 'perm_content_all', name: 'content:*', description: 'Full content & CMS management' },
+  { id: 'perm_content_read', name: 'content:read', description: 'Read-only CMS access' },
+  { id: 'perm_campaigns_all', name: 'campaigns:*', description: 'Full campaign management' },
+  { id: 'perm_settings_all', name: 'settings:*', description: 'Full settings access' },
+  { id: 'perm_reports_read', name: 'reports:read', description: 'Read analytics and reports' },
+]
+
+const ROLE_PERM_MAP: Record<string, string[]> = {
+  role_super_admin: ['perm_users_all', 'perm_contacts_all', 'perm_deals_all', 'perm_content_all', 'perm_campaigns_all', 'perm_settings_all', 'perm_reports_read'],
+  role_admin: ['perm_users_all', 'perm_contacts_all', 'perm_deals_all', 'perm_content_all', 'perm_campaigns_all', 'perm_settings_all', 'perm_reports_read'],
+  role_staff: ['perm_contacts_all', 'perm_deals_all', 'perm_content_all', 'perm_campaigns_all', 'perm_reports_read'],
+  role_viewer: ['perm_contacts_read', 'perm_deals_read', 'perm_content_read', 'perm_reports_read'],
+}
+
 async function seedRoles() {
   for (const role of ROLES) {
     await db
@@ -40,7 +60,24 @@ async function seedRoles() {
       .values(role)
       .onConflictDoNothing({ target: schema.roles.id })
   }
-  console.log(`roles: ${ROLES.length} ensured`)
+
+  for (const perm of PERMISSIONS_LIST) {
+    await db
+      .insert(schema.permissions)
+      .values(perm)
+      .onConflictDoNothing({ target: schema.permissions.id })
+  }
+
+  for (const [roleId, permIds] of Object.entries(ROLE_PERM_MAP)) {
+    for (const permId of permIds) {
+      await db
+        .insert(schema.role_permissions)
+        .values({ role_id: roleId, permission_id: permId })
+        .onConflictDoNothing()
+    }
+  }
+
+  console.log(`roles and permissions ensured`)
 }
 
 async function seedAdminUser() {
