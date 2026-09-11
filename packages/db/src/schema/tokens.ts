@@ -9,6 +9,7 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import { pgTable } from "drizzle-orm/pg-core";
+import { users } from "./auth";
 
 export const api_keys = pgTable(
   "api_keys",
@@ -22,7 +23,7 @@ export const api_keys = pgTable(
     last_used_at: timestamp("last_used_at", { withTimezone: true }),
     expires_at: timestamp("expires_at", { withTimezone: true }),
     is_active: boolean("is_active").default(true).notNull(),
-    created_by: varchar("created_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -42,7 +43,7 @@ export const webhooks = pgTable(
     is_active: boolean("is_active").default(true).notNull(),
     last_triggered_at: timestamp("last_triggered_at", { withTimezone: true }),
     failure_count: integer("failure_count").default(0).notNull(),
-    created_by: varchar("created_by", { length: 36 }),
+    created_by: varchar("created_by", { length: 36 }).references(() => users.id, { onDelete: "set null" }),
     created_at: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updated_at: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

@@ -258,32 +258,48 @@ export function AutomationsView() {
             </button>
           </div>
 
-          {activities.length === 0 && !loadingActivities ? (
-            <div className="p-12 text-center text-xs text-[var(--text-tertiary)]">
-              No automated actions logged yet. When leads move stage or background cron fires, their executions will stream here.
-            </div>
-          ) : (
-            <div className="divide-y divide-[var(--border)]">
-              {activities.map((act) => (
-                <div key={act.id} className="p-4 flex items-start gap-3 hover:bg-[var(--surface-hover)] transition-colors">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[var(--orange)] border border-orange-200 shrink-0 mt-0.5">
-                    <Zap className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <strong className="text-xs font-bold text-[var(--text)]">{act.title}</strong>
-                      <time className="text-[11px] text-[var(--text-tertiary)] font-mono">
-                        {formatShortDate(act.occurred_at, true)}
-                      </time>
-                    </div>
-                    <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-                      {act.description}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--border)] bg-[var(--surface-alt)] text-[10px] font-bold text-[var(--text-tertiary)] uppercase tracking-wider">
+                  <th className="py-3 px-4 w-12 text-center">Type</th>
+                  <th className="py-3 px-4">Event Name</th>
+                  <th className="py-3 px-4">Description</th>
+                  <th className="py-3 px-4 text-right">Time</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border)] text-xs text-[var(--text)]">
+                {activities.length === 0 && !loadingActivities ? (
+                  <tr>
+                    <td colSpan={4} className="py-12 text-center text-xs text-[var(--text-tertiary)]">
+                      No automated actions logged yet. When leads move stage or background cron fires, their executions will stream here.
+                    </td>
+                  </tr>
+                ) : (
+                  activities.map((act) => (
+                    <tr key={act.id} className="hover:bg-[var(--surface-hover)] transition-colors">
+                      <td className="py-3.5 px-4 text-center">
+                        <div className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-orange-50 text-[var(--orange)] border border-orange-200">
+                          <Zap className="h-3.5 w-3.5" />
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <strong className="font-bold">{act.title}</strong>
+                      </td>
+                      <td className="py-3.5 px-4 text-[var(--text-secondary)]">
+                        {act.description}
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <time className="text-[11px] text-[var(--text-tertiary)] font-mono">
+                          {formatShortDate(act.occurred_at, true)}
+                        </time>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

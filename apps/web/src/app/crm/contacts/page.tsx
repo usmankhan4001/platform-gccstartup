@@ -347,6 +347,13 @@ export default function ContactsPage() {
           </table>
         </div>
       </div>
+      
+      {/* Pagination component logic is simplified since limit=100 was used before */}
+      {contacts.length === 100 && (
+        <div className="flex items-center justify-center mt-2 pb-2">
+          <p className="text-xs text-[var(--text-tertiary)]">Showing latest 100 contacts matching criteria. Narrow your search for more specific results.</p>
+        </div>
+      )}
 
       {/* Add Contact Modal */}
       {isAddModalOpen && (
